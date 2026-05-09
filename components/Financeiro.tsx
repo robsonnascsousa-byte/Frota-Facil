@@ -50,6 +50,7 @@ interface FinanceiroProps {
     onUpdateReceitaStatus: (id: number, status: StatusPagamento) => void;
     onUpdateManutencaoStatus: (id: number, status: StatusPagamentoDespesa) => void;
     onUpdatePagamentoStatus: (contratoId: number, pagamentoId: number, status: StatusPagamento) => void;
+    onDeletePagamento: (contratoId: number, pagamentoId: number) => void;
 }
 
 const Financeiro: React.FC<FinanceiroProps> = ({
@@ -65,12 +66,13 @@ const Financeiro: React.FC<FinanceiroProps> = ({
     onDeleteReceita,
     onUpdateReceitaStatus,
     onUpdateManutencaoStatus,
-    onUpdatePagamentoStatus
+    onUpdatePagamentoStatus,
+    onDeletePagamento
 }) => {
     const [activeTab, setActiveTab] = useState<'receber' | 'pagar'>('receber');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [formData, setFormData] = useState(initialFormState);
-    const [itemToDelete, setItemToDelete] = useState<{ id: string, tipo: string, valor: number, category: 'receita' | 'despesa' } | null>(null);
+    const [itemToDelete, setItemToDelete] = useState<{ id: string, tipo: string, valor: number, category: 'receita' | 'despesa' | 'pagamento', contratoId?: number } | null>(null);
 
     const contasAReceber = useMemo<ContasAReceber[]>(() => {
         const pagamentosContratos: ContasAReceber[] = contratos.flatMap(contrato =>
@@ -192,12 +194,13 @@ const Financeiro: React.FC<FinanceiroProps> = ({
         setFormData({ ...initialFormState, transacaoTipo });
     };
 
-    const handleDeleteClick = (item: ContasAReceber | ContaAPagar, category: 'receita' | 'despesa') => {
+    const handleDeleteClick = (item: ContasAReceber | ContaAPagar, category: 'receita' | 'despesa' | 'pagamento') => {
         setItemToDelete({
             id: item.id,
             tipo: item.tipo,
             valor: item.valor,
-            category
+            category,
+            contratoId: (item as ContasAReceber).contratoId
         });
     };
 
@@ -207,8 +210,10 @@ const Financeiro: React.FC<FinanceiroProps> = ({
         const originalId = parseInt(itemToDelete.id.split('-')[1]);
         if (itemToDelete.category === 'despesa') {
             onDeleteDespesa(originalId);
-        } else {
+        } else if (itemToDelete.category === 'receita') {
             onDeleteReceita(originalId);
+        } else if (itemToDelete.category === 'pagamento' && itemToDelete.contratoId) {
+            onDeletePagamento(itemToDelete.contratoId, originalId);
         }
         setItemToDelete(null);
     };
@@ -297,16 +302,15 @@ const Financeiro: React.FC<FinanceiroProps> = ({
                                     },
                                     {
                                         header: 'Ações', accessor: 'id', render: (item) => (
-                                            item.isManual ? (
+                                            <div className="flex items-center gap-2">
+                                                {!item.isManual && <span className="text-[10px] text-slate-400 italic bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded mr-1">Contrato</span>}
                                                 <button
-                                                    onClick={() => handleDeleteClick(item, 'receita')}
+                                                    onClick={() => handleDeleteClick(item, item.isManual ? 'receita' : 'pagamento')}
                                                     className="text-red-600 hover:text-red-800 font-medium text-sm"
                                                 >
                                                     Excluir
                                                 </button>
-                                            ) : (
-                                                <span className="text-xs text-slate-400 italic">Via Contrato</span>
-                                            )
+                                            </div>
                                         )
                                     }
                                 ]}

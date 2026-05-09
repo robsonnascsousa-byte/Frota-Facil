@@ -58,7 +58,7 @@ const InnerApp: React.FC = () => {
   const { data: veiculos, add: addVeiculo, update: updateVeiculo, remove: removeVeiculo, setData: setVeiculos } = useResource<Veiculo>('veiculos');
   const { data: motoristas, add: addMotorista, update: updateMotorista, remove: removeMotorista, setData: setMotoristas } = useResource<Motorista>('motoristas');
   const { data: planos, add: addPlano, update: updatePlano, remove: removePlano, setData: setPlanos } = useResource<Plano>('planos');
-  const { data: contratos, add: addContrato, update: updateContrato, remove: removeContrato, setData: setContratos } = useResource<Contrato>('contratos', { selectQuery: '*, pagamentos(*)' });
+  const { data: contratos, add: addContrato, update: updateContrato, remove: removeContrato, setData: setContratos, refresh: refreshContratos } = useResource<Contrato>('contratos', { selectQuery: '*, pagamentos(*)' });
   const { data: manutencoes, add: addManutencao, update: updateManutencao, remove: removeManutencao, setData: setManutencoes } = useResource<Manutencao>('manutencoes');
   const { data: multas, add: addMulta, update: updateMulta, remove: removeMulta, setData: setMultas } = useResource<Multa>('multas');
   const { data: sinistros, add: addSinistro, update: updateSinistro, remove: removeSinistro, setData: setSinistros } = useResource<Sinistro>('sinistros');
@@ -265,6 +265,9 @@ const InnerApp: React.FC = () => {
       if (veiculo) {
         await updateVeiculo({ ...veiculo, status: 'Locado', motorista_atual: contrato.motorista_nome });
       }
+
+      // Recarrega os contratos do banco para puxar os pagamentos recém-criados
+      await refreshContratos();
     } catch (e) {
       console.error(e);
       alert(`Erro ao adicionar contrato: ${(e as Error).message}`);
@@ -527,6 +530,22 @@ const InnerApp: React.FC = () => {
     }
   };
 
+  const handleDeletePagamento = async (contratoId: number, pagamentoId: number) => {
+    try {
+      await db.remove('pagamentos', pagamentoId);
+      
+      const contrato = contratos.find(c => c.id === contratoId);
+      if (contrato) {
+        const updatedPagamentos = contrato.pagamentos.filter(p => p.id !== pagamentoId);
+        // Optimistic update
+        setContratos(prev => prev.map(c => c.id === contratoId ? { ...c, pagamentos: updatedPagamentos } : c));
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao excluir parcela do contrato.');
+    }
+  };
+
 
   const renderContent = () => {
     switch (currentPage) {
@@ -552,7 +571,7 @@ const InnerApp: React.FC = () => {
             if (contrato) updateContrato({ ...contrato, status });
           }} />;
       case 'manutencoes': return <Manutencoes manutencoes={manutencoes} veiculos={veiculos} onAddManutencao={handleAddManutencao} onDeleteManutencao={handleDeleteManutencao} onUpdateManutencao={handleUpdateManutencao} />;
-      case 'financeiro': return <Financeiro contratos={contratos} despesasManuais={despesas} receitasManuais={receitas} manutencoes={manutencoes} veiculos={veiculos} onAddDespesa={handleAddDespesa} onDeleteDespesa={handleDeleteDespesa} onUpdateDespesaStatus={handleUpdateDespesaStatus} onAddReceita={handleAddReceita} onDeleteReceita={handleDeleteReceita} onUpdateReceitaStatus={handleUpdateReceitaStatus} onUpdateManutencaoStatus={handleUpdateManutencaoStatus} onUpdatePagamentoStatus={handleUpdatePagamentoStatus} />;
+      case 'financeiro': return <Financeiro contratos={contratos} despesasManuais={despesas} receitasManuais={receitas} manutencoes={manutencoes} veiculos={veiculos} onAddDespesa={handleAddDespesa} onDeleteDespesa={handleDeleteDespesa} onUpdateDespesaStatus={handleUpdateDespesaStatus} onAddReceita={handleAddReceita} onDeleteReceita={handleDeleteReceita} onUpdateReceitaStatus={handleUpdateReceitaStatus} onUpdateManutencaoStatus={handleUpdateManutencaoStatus} onUpdatePagamentoStatus={handleUpdatePagamentoStatus} onDeletePagamento={handleDeletePagamento} />;
       case 'dre': return <DRE contratos={contratos} despesas={despesas} manutencoes={manutencoes} multas={multas} receitasManuais={receitas} veiculos={veiculos} />;
       case 'multas':
       case 'sinistros':
