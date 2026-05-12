@@ -570,7 +570,7 @@ const InnerApp: React.FC = () => {
 
   const renderContent = () => {
     switch (currentPage) {
-      case 'dashboard': return <Dashboard veiculos={veiculos} contratos={contratos} documentos={documentos} despesas={despesas} manutencoes={manutencoes} />;
+      case 'dashboard': return <Dashboard veiculos={veiculos} contratos={contratos} documentos={documentos} despesas={despesas} manutencoes={manutencoes} receitas={receitas} multas={multas} />;
       case 'veiculos': return <Veiculos
         veiculos={veiculos}
         contratos={contratos}
