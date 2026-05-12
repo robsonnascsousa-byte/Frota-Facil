@@ -77,7 +77,8 @@ const VeiculoCard: React.FC<{
 }> = ({ veiculo, financeiro, onClick, onDelete, onEdit }) => {
     const marca = encodeURIComponent(veiculo.marca);
     const modelo = encodeURIComponent(veiculo.modelo.split(' ')[0]);
-    const imageUrl = veiculo.foto_url || `https://source.unsplash.com/400x300/?${marca}+${modelo}`;
+    const fallbackImage = `https://placehold.co/400x300/1e293b/94a3b8?text=${marca}+${modelo}`;
+    const imageUrl = veiculo.foto_url || fallbackImage;
 
     const brandDomains: { [key: string]: string } = {
         'Chevrolet': 'chevrolet.com',
@@ -113,7 +114,12 @@ const VeiculoCard: React.FC<{
                 src={imageUrl}
                 alt={`${veiculo.marca} ${veiculo.modelo}`}
                 className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 ease-in-out group-hover:scale-110 z-0"
-                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                onError={(e) => { 
+                    const target = e.currentTarget;
+                    if (target.src !== fallbackImage) {
+                        target.src = fallbackImage;
+                    }
+                }}
             />
             <div className="absolute inset-0 bg-slate-700 z-0"></div>
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent z-10"></div>
