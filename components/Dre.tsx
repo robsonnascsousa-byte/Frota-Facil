@@ -65,8 +65,8 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
             if (r.status === 'Pago' && isPeriodMatch(r.data) && isVeiculoMatch(r.veiculo_id, r.veiculo_placa)) receitaBruta += r.valor;
         });
 
-        // 1.1 Impostos Estimados (Ex: 15% - Pode ser ajustado conforme a realidade fiscal)
-        const impostosDeducoes = receitaBruta * 0.15;
+        // 1.1 Impostos e Deduções (Zerado conforme solicitação - será lançado manualmente)
+        const impostosDeducoes = 0;
         const receitaLiquida = receitaBruta - impostosDeducoes;
 
         // 2. Custo dos Serviços Prestados (CSP) - Custos diretos da frota
@@ -329,7 +329,7 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
                                 {/* 1.1 DEDUÇÕES */}
                                 <tr className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
                                     <td className="py-3 px-8 text-slate-500 dark:text-slate-400 italic sticky left-0 bg-white dark:bg-slate-900 z-10 border-r border-slate-50 dark:border-slate-700">
-                                        (-) Impostos e Deduções (Estimado)
+                                        (-) Impostos e Deduções
                                     </td>
                                     {viewMode === 'comparative' ? (
                                         <>
@@ -339,7 +339,7 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
                                     ) : (
                                         <>
                                             <td className="text-right py-3 px-4 text-rose-500/80 tabular-nums">({formatCurrency(currentDRE.impostosDeducoes)})</td>
-                                            <td className="text-right py-3 px-4 text-slate-400 tabular-nums">15.0%</td>
+                                            <td className="text-right py-3 px-4 text-slate-400 tabular-nums">0.0%</td>
                                         </>
                                     )}
                                 </tr>
