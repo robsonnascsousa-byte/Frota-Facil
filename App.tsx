@@ -495,6 +495,11 @@ const InnerApp: React.FC = () => {
     if (r) await updateReceita({ ...r, status });
   };
 
+  const handleUpdateReceitaValue = async (receitaId: number, valor: number) => {
+    const r = receitas.find(x => x.id === receitaId);
+    if (r) await updateReceita({ ...r, valor });
+  };
+
   const handleUpdatePagamentoStatus = async (contratoId: number, pagamentoId: number, status: StatusPagamento) => {
     // This is hierarchical (pagamento inside contrato or separate table?)
     // services/database has 'getPagamentosByContrato' but types.ts has pagamentos[] inside Contrato.
@@ -527,6 +532,22 @@ const InnerApp: React.FC = () => {
       }
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleUpdatePagamentoValue = async (contratoId: number, pagamentoId: number, valor: number) => {
+    try {
+      await db.update('pagamentos', pagamentoId, { valor });
+      
+      const contrato = contratos.find(c => c.id === contratoId);
+      if (contrato) {
+        const updatedPagamentos = contrato.pagamentos.map(p => p.id === pagamentoId ? { ...p, valor } : p);
+        // Optimistic update
+        setContratos(prev => prev.map(c => c.id === contratoId ? { ...c, pagamentos: updatedPagamentos } : c));
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao atualizar valor da parcela.');
     }
   };
 
@@ -571,7 +592,24 @@ const InnerApp: React.FC = () => {
             if (contrato) updateContrato({ ...contrato, status });
           }} />;
       case 'manutencoes': return <Manutencoes manutencoes={manutencoes} veiculos={veiculos} onAddManutencao={handleAddManutencao} onDeleteManutencao={handleDeleteManutencao} onUpdateManutencao={handleUpdateManutencao} />;
-      case 'financeiro': return <Financeiro contratos={contratos} despesasManuais={despesas} receitasManuais={receitas} manutencoes={manutencoes} veiculos={veiculos} onAddDespesa={handleAddDespesa} onDeleteDespesa={handleDeleteDespesa} onUpdateDespesaStatus={handleUpdateDespesaStatus} onAddReceita={handleAddReceita} onDeleteReceita={handleDeleteReceita} onUpdateReceitaStatus={handleUpdateReceitaStatus} onUpdateManutencaoStatus={handleUpdateManutencaoStatus} onUpdatePagamentoStatus={handleUpdatePagamentoStatus} onDeletePagamento={handleDeletePagamento} />;
+      case 'financeiro': return <Financeiro
+        contratos={contratos}
+        despesasManuais={despesas}
+        receitasManuais={receitas}
+        manutencoes={manutencoes}
+        veiculos={veiculos}
+        onAddDespesa={handleAddDespesa}
+        onDeleteDespesa={handleDeleteDespesa}
+        onUpdateDespesaStatus={handleUpdateDespesaStatus}
+        onAddReceita={handleAddReceita}
+        onDeleteReceita={handleDeleteReceita}
+        onUpdateReceitaStatus={handleUpdateReceitaStatus}
+        onUpdateReceitaValue={handleUpdateReceitaValue}
+        onUpdateManutencaoStatus={handleUpdateManutencaoStatus}
+        onUpdatePagamentoStatus={handleUpdatePagamentoStatus}
+        onUpdatePagamentoValue={handleUpdatePagamentoValue}
+        onDeletePagamento={handleDeletePagamento}
+      />;
       case 'dre': return <DRE contratos={contratos} despesas={despesas} manutencoes={manutencoes} multas={multas} receitasManuais={receitas} veiculos={veiculos} />;
       case 'multas':
       case 'sinistros':

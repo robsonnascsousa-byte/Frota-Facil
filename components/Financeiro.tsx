@@ -50,7 +50,9 @@ interface FinanceiroProps {
     onUpdateReceitaStatus: (id: number, status: StatusPagamento) => void;
     onUpdateManutencaoStatus: (id: number, status: StatusPagamentoDespesa) => void;
     onUpdatePagamentoStatus: (contratoId: number, pagamentoId: number, status: StatusPagamento) => void;
+    onUpdatePagamentoValue: (contratoId: number, pagamentoId: number, valor: number) => void;
     onDeletePagamento: (contratoId: number, pagamentoId: number) => void;
+    onUpdateReceitaValue: (id: number, valor: number) => void;
 }
 
 const Financeiro: React.FC<FinanceiroProps> = ({
@@ -67,12 +69,16 @@ const Financeiro: React.FC<FinanceiroProps> = ({
     onUpdateReceitaStatus,
     onUpdateManutencaoStatus,
     onUpdatePagamentoStatus,
-    onDeletePagamento
+    onUpdatePagamentoValue,
+    onDeletePagamento,
+    onUpdateReceitaValue
 }) => {
     const [activeTab, setActiveTab] = useState<'receber' | 'pagar'>('receber');
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [formData, setFormData] = useState(initialFormState);
     const [itemToDelete, setItemToDelete] = useState<{ id: string, tipo: string, valor: number, category: 'receita' | 'despesa' | 'pagamento', contratoId?: number } | null>(null);
+    const [itemToEdit, setItemToEdit] = useState<{ id: string, tipo: string, valor: number, category: 'receita' | 'pagamento', contratoId?: number } | null>(null);
+    const [newEditValue, setNewEditValue] = useState<number>(0);
 
     const contasAReceber = useMemo<ContasAReceber[]>(() => {
         const pagamentosContratos: ContasAReceber[] = contratos.flatMap(contrato =>
@@ -204,6 +210,30 @@ const Financeiro: React.FC<FinanceiroProps> = ({
         });
     };
 
+    const handleEditClick = (item: ContasAReceber) => {
+        setItemToEdit({
+            id: item.id,
+            tipo: item.tipo,
+            valor: item.valor,
+            category: item.isManual ? 'receita' : 'pagamento',
+            contratoId: item.contratoId
+        });
+        setNewEditValue(item.valor);
+    };
+
+    const confirmEdit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!itemToEdit) return;
+
+        const originalId = parseInt(itemToEdit.id.split('-')[1]);
+        if (itemToEdit.category === 'receita') {
+            onUpdateReceitaValue(originalId, newEditValue);
+        } else if (itemToEdit.category === 'pagamento' && itemToEdit.contratoId) {
+            onUpdatePagamentoValue(itemToEdit.contratoId, originalId, newEditValue);
+        }
+        setItemToEdit(null);
+    };
+
     const confirmDelete = () => {
         if (!itemToDelete) return;
 
@@ -304,6 +334,12 @@ const Financeiro: React.FC<FinanceiroProps> = ({
                                         header: 'Ações', accessor: 'id', render: (item) => (
                                             <div className="flex items-center gap-2">
                                                 {!item.isManual && <span className="text-[10px] text-slate-400 italic bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded mr-1">Contrato</span>}
+                                                <button
+                                                    onClick={() => handleEditClick(item)}
+                                                    className="text-petrol-blue-600 hover:text-petrol-blue-800 font-medium text-sm"
+                                                >
+                                                    Editar
+                                                </button>
                                                 <button
                                                     onClick={() => handleDeleteClick(item, item.isManual ? 'receita' : 'pagamento')}
                                                     className="text-red-600 hover:text-red-800 font-medium text-sm"
@@ -460,6 +496,33 @@ const Financeiro: React.FC<FinanceiroProps> = ({
                         <button type="submit" className={`py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${formData.transacaoTipo === 'despesa' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
                             Salvar {formData.transacaoTipo === 'despesa' ? 'Pagamento' : 'Recebimento'}
                         </button>
+                    </div>
+                </form>
+            </Modal>
+
+            <Modal isOpen={!!itemToEdit} onClose={() => setItemToEdit(null)} title="Editar Valor do Recebimento">
+                <form onSubmit={confirmEdit} className="p-1 space-y-4">
+                    <div>
+                        <p className="text-sm font-bold text-slate-900 dark:text-white uppercase mb-1">{itemToEdit?.tipo}</p>
+                        <p className="text-xs text-slate-500 mb-4 italic">Altere o valor abaixo para ajustar o recebimento.</p>
+                    </div>
+                    
+                    <div>
+                        <label htmlFor="edit-valor" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Novo Valor (R$)</label>
+                        <input 
+                            type="number" 
+                            step="0.01" 
+                            id="edit-valor" 
+                            value={newEditValue} 
+                            onChange={(e) => setNewEditValue(parseFloat(e.target.value) || 0)}
+                            className="block w-full rounded-md border-slate-300 shadow-sm focus:border-petrol-blue-500 focus:ring-petrol-blue-500 sm:text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white p-2 border"
+                            autoFocus
+                        />
+                    </div>
+
+                    <div className="flex justify-end space-x-3 pt-4 border-t">
+                        <button type="button" onClick={() => setItemToEdit(null)} className="px-5 py-2 border border-slate-200 dark:border-slate-700 rounded-md text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Cancelar</button>
+                        <button type="submit" className="px-5 py-2 rounded-md font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-all">Salvar Alteração</button>
                     </div>
                 </form>
             </Modal>
