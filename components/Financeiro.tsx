@@ -303,6 +303,14 @@ const Financeiro: React.FC<FinanceiroProps> = ({
                             </div>
                             <Table<ContasAReceber>
                                 data={contasAReceber}
+                                statusFilter={{
+                                    field: 'status',
+                                    options: ['Pago', 'Em aberto', 'Atrasado']
+                                }}
+                                dateFilter={{
+                                    field: 'vencimento',
+                                    label: 'Vencimento'
+                                }}
                                 columns={[
                                     { header: 'Descrição', accessor: 'tipo' },
                                     { header: 'Motorista/Fonte', accessor: 'motorista_nome', render: (item) => item.motorista_nome || '-' },
@@ -369,6 +377,14 @@ const Financeiro: React.FC<FinanceiroProps> = ({
                             </div>
                             <Table<ContaAPagar>
                                 data={contasAPagar}
+                                statusFilter={{
+                                    field: 'status',
+                                    options: ['Paga', 'Em aberto']
+                                }}
+                                dateFilter={{
+                                    field: 'data',
+                                    label: 'Data'
+                                }}
                                 columns={[
                                     { header: 'Tipo', accessor: 'tipo' },
                                     { header: 'Veículo', accessor: 'veiculo_placa' },
