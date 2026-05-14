@@ -66,6 +66,7 @@ interface FinancialData {
     totalCustos: number;
     lucroOperacional: number;
     rentabilidadeReal: number;
+    rentabilidadePercentual: number;
 }
 
 const VeiculoCard: React.FC<{
@@ -169,9 +170,14 @@ const VeiculoCard: React.FC<{
                     {/* Profitability Summary */}
                     <div className="border-t border-white/20 pt-2 flex justify-between items-center">
                         <span className="text-xs text-slate-300">Lucro Real:</span>
-                        <span className={`text-sm font-bold ${profitColor}`}>
-                            {formatCurrency(financeiro.rentabilidadeReal)}
-                        </span>
+                        <div className="flex flex-col items-end">
+                            <span className={`text-sm font-bold ${profitColor}`}>
+                                {formatCurrency(financeiro.rentabilidadeReal)}
+                            </span>
+                            <span className={`text-xs ${profitColor} opacity-90`}>
+                                {financeiro.rentabilidadePercentual > 0 ? '+' : ''}{financeiro.rentabilidadePercentual.toFixed(2)}%
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -267,6 +273,8 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
 
             // Real Profitability: (Revenue + Final Value) - (Initial Investment + Costs)
             const rentabilidadeReal = (receitaTotal + valorFinal) - (v.valor_compra + totalCustos);
+            const investimentoTotal = v.valor_compra + totalCustos;
+            const rentabilidadePercentual = investimentoTotal > 0 ? (rentabilidadeReal / investimentoTotal) * 100 : 0;
 
             stats[v.id] = {
                 receitaTotal,
@@ -276,7 +284,8 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
                 custoOutros,
                 totalCustos,
                 lucroOperacional,
-                rentabilidadeReal
+                rentabilidadeReal,
+                rentabilidadePercentual
             };
         });
 
@@ -555,7 +564,8 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
                                 custoOutros: 0,
                                 totalCustos: 0,
                                 lucroOperacional: 0,
-                                rentabilidadeReal: 0
+                                rentabilidadeReal: 0,
+                                rentabilidadePercentual: 0
                             }}
                             onClick={() => setSelectedVehicle(veiculo)}
                             onDelete={() => handleDeleteClick(veiculo)}
