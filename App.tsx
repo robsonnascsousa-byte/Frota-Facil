@@ -394,6 +394,7 @@ const InnerApp: React.FC = () => {
     } catch (error: any) {
       console.error('Erro ao salvar manutenção:', error);
       alert(`Erro ao salvar manutenção: ${error?.message || error?.details || JSON.stringify(error)}`);
+      throw error; // Re-throw so the modal stays open
     }
   };
 
