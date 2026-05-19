@@ -17,11 +17,20 @@ interface DashboardProps {
 // Custom tooltip component for charts
 const CustomTooltip = ({ active, payload, label, isCurrency = true }: any) => {
     if (active && payload && payload.length) {
+        // Map gradient fill names to readable colors for tooltip
+        const getEntryColor = (entry: any) => {
+            const colorStr = entry.fill || entry.color || '#fff';
+            if (colorStr.includes('receitaRealizada')) return '#22c55e';
+            if (colorStr.includes('receitaPrevista')) return '#86efac';
+            if (colorStr.includes('despesaRealizada')) return '#f97316';
+            if (colorStr.includes('despesaPrevista')) return '#fdba74';
+            return entry.color || '#94a3b8';
+        };
         return (
-            <div className="bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-sm px-4 py-3 rounded-xl shadow-xl border border-slate-700/50">
-                <p className="text-slate-300 text-sm font-medium mb-2">{label}</p>
+            <div className="bg-slate-900/95 dark:bg-slate-900 backdrop-blur-sm px-4 py-3 rounded-xl shadow-xl border border-slate-600">
+                <p className="text-white text-sm font-bold mb-2">{label}</p>
                 {payload.map((entry: any, index: number) => (
-                    <p key={index} className="text-sm" style={{ color: entry.color }}>
+                    <p key={index} className="text-sm font-medium" style={{ color: getEntryColor(entry) }}>
                         <span className="font-semibold">{entry.name}:</span>{' '}
                         {isCurrency ? formatCurrency(entry.value) : `${entry.value}%`}
                     </p>
@@ -32,17 +41,20 @@ const CustomTooltip = ({ active, payload, label, isCurrency = true }: any) => {
     return null;
 };
 
+// Axis tick color that works in both light and dark modes
+const AXIS_TICK_COLOR = '#94a3b8'; // slate-400 — visible on both bg
+
 // Custom legend
 const CustomLegend = ({ payload }: any) => {
     return (
-        <div className="flex justify-center gap-6 mt-4">
+        <div className="flex flex-wrap justify-center gap-4 sm:gap-6 mt-4">
             {payload?.map((entry: any, index: number) => (
                 <div key={index} className="flex items-center gap-2">
                     <div
                         className="w-3 h-3 rounded-full"
                         style={{ backgroundColor: entry.color }}
                     />
-                    <span className="text-sm text-slate-600 dark:text-slate-400">{entry.value}</span>
+                    <span className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 font-medium">{entry.value}</span>
                 </div>
             ))}
         </div>
@@ -442,18 +454,18 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                                     <stop offset="100%" stopColor="#fb923c" stopOpacity={0.4} />
                                 </linearGradient>
                             </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-700" vertical={false} />
+                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} opacity={0.4} />
                             <XAxis
                                 dataKey="name"
                                 axisLine={false}
                                 tickLine={false}
-                                tick={{ fill: '#64748b', fontSize: 11 }}
+                                tick={{ fill: AXIS_TICK_COLOR, fontSize: 11, fontWeight: 500 }}
                             />
                             <YAxis
                                 axisLine={false}
                                 tickLine={false}
                                 tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-                                tick={{ fill: '#64748b', fontSize: 12 }}
+                                tick={{ fill: AXIS_TICK_COLOR, fontSize: 12, fontWeight: 500 }}
                             />
                             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.05)' }} />
                             <Legend content={<CustomLegend />} />
@@ -497,18 +509,18 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                                     <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
                                 </linearGradient>
                             </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-700" vertical={false} />
+                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} opacity={0.4} />
                             <XAxis
                                 dataKey="name"
                                 axisLine={false}
                                 tickLine={false}
-                                tick={{ fill: '#64748b', fontSize: 12 }}
+                                tick={{ fill: AXIS_TICK_COLOR, fontSize: 12, fontWeight: 500 }}
                             />
                             <YAxis
                                 axisLine={false}
                                 tickLine={false}
                                 domain={[70, 100]}
-                                tick={{ fill: '#64748b', fontSize: 12 }}
+                                tick={{ fill: AXIS_TICK_COLOR, fontSize: 12, fontWeight: 500 }}
                                 tickFormatter={(value) => `${value}%`}
                             />
                             <Tooltip content={<CustomTooltip isCurrency={false} />} />
