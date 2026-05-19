@@ -276,6 +276,11 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
     }, [veiculos, contratos, despesas, manutencoes]);
 
     // Funnel chart data: operational expenses by category
+    // Helper to strip installment suffixes like "(1/12)" or "(3/3)" from tipo names
+    const getBaseCategory = (tipo: string): string => {
+        return tipo.replace(/\s*\(\d+\/\d+\)\s*$/, '').trim() || 'Outros';
+    };
+
     const funnelData = useMemo(() => {
         const FUNNEL_COLORS = [
             '#6366f1', // Indigo
@@ -299,21 +304,21 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
             filteredMultas = filteredMultas.filter(m => m.veiculo_placa === funnelVeiculoFilter);
         }
 
-        // Group despesas by tipo
+        // Group despesas by BASE tipo (strip installment suffixes)
         const categorias: { [key: string]: number } = {};
 
         filteredDespesas.forEach(d => {
-            const tipo = d.tipo || 'Outros';
+            const tipo = getBaseCategory(d.tipo || 'Outros');
             categorias[tipo] = (categorias[tipo] || 0) + d.valor;
         });
 
-        // Manutenções go under "Manutenção"
+        // Manutenções grouped under "Manutenção"
         const totalManutencao = filteredManutencoes.reduce((sum, m) => sum + m.valor, 0);
         if (totalManutencao > 0) {
             categorias['Manutenção'] = (categorias['Manutenção'] || 0) + totalManutencao;
         }
 
-        // Multas go under "Multas"
+        // Multas grouped under "Multas"
         const totalMultas = filteredMultas.reduce((sum, m) => sum + m.valor, 0);
         if (totalMultas > 0) {
             categorias['Multas'] = (categorias['Multas'] || 0) + totalMultas;
@@ -334,6 +339,34 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
     }, [despesas, manutencoes, multas, funnelVeiculoFilter]);
 
     const totalFunnelGastos = useMemo(() => funnelData.reduce((sum, d) => sum + d.value, 0), [funnelData]);
+
+    // Calculate total revenue (receitas + contratos pagamentos) for funnel proportions
+    const totalFunnelReceita = useMemo(() => {
+        let filteredReceitas = receitas.filter(r => r.status === 'Pago');
+        let filteredPagamentos = contratos.flatMap(c => c.pagamentos || []).filter(p => p.status === 'Pago');
+
+        if (funnelVeiculoFilter !== 'todos') {
+            filteredReceitas = filteredReceitas.filter(r => r.veiculo_placa === funnelVeiculoFilter);
+            // Filter pagamentos by contrato's vehicle
+            const contratosDoVeiculo = contratos.filter(c => c.veiculo_placa === funnelVeiculoFilter).map(c => c.id);
+            filteredPagamentos = filteredPagamentos.filter(p => contratosDoVeiculo.includes((p as any).contrato_id));
+        }
+
+        return filteredReceitas.reduce((sum, r) => sum + r.valor, 0)
+             + filteredPagamentos.reduce((sum, p) => sum + p.valor, 0);
+    }, [receitas, contratos, funnelVeiculoFilter]);
+
+    // Identify categories that exceed 45% of revenue
+    const funnelAlerts = useMemo(() => {
+        if (totalFunnelReceita <= 0) return [];
+        return funnelData
+            .filter(item => (item.value / totalFunnelReceita) * 100 >= 45)
+            .map(item => ({
+                name: item.name,
+                value: item.value,
+                percentage: ((item.value / totalFunnelReceita) * 100).toFixed(1),
+            }));
+    }, [funnelData, totalFunnelReceita]);
 
     // Get unique vehicle plates for filter
     const veiculoPlacas = useMemo(() => {
@@ -635,12 +668,18 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                                         content={({ active, payload }) => {
                                             if (active && payload && payload.length) {
                                                 const data = payload[0].payload;
-                                                const percentage = totalFunnelGastos > 0 ? ((data.value / totalFunnelGastos) * 100).toFixed(1) : '0';
+                                                const percentGastos = totalFunnelGastos > 0 ? ((data.value / totalFunnelGastos) * 100).toFixed(1) : '0';
+                                                const percentReceita = totalFunnelReceita > 0 ? ((data.value / totalFunnelReceita) * 100).toFixed(1) : null;
                                                 return (
                                                     <div className="bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-sm px-4 py-3 rounded-xl shadow-xl border border-slate-700/50">
                                                         <p className="text-slate-300 text-sm font-medium mb-1">{data.name}</p>
                                                         <p className="text-white font-bold">{formatCurrency(data.value)}</p>
-                                                        <p className="text-slate-400 text-xs mt-1">{percentage}% do total</p>
+                                                        <p className="text-slate-400 text-xs mt-1">{percentGastos}% dos gastos</p>
+                                                        {percentReceita && (
+                                                            <p className={`text-xs mt-0.5 ${parseFloat(percentReceita) >= 45 ? 'text-red-400 font-bold' : 'text-emerald-400'}`}>
+                                                                {percentReceita}% da receita
+                                                            </p>
+                                                        )}
                                                     </div>
                                                 );
                                             }
@@ -673,26 +712,69 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                                 <p className="text-2xl font-bold mt-1">{formatCurrency(totalFunnelGastos)}</p>
                                 <p className="text-indigo-200 text-xs mt-2">{funnelData.length} categorias</p>
                             </div>
+                            {totalFunnelReceita > 0 && (
+                                <div className="bg-gradient-to-br from-emerald-500 to-green-600 p-4 rounded-xl text-white">
+                                    <p className="text-emerald-100 text-sm font-medium">Receita Arrecadada</p>
+                                    <p className="text-2xl font-bold mt-1">{formatCurrency(totalFunnelReceita)}</p>
+                                    <p className="text-emerald-200 text-xs mt-2">
+                                        Gastos = {totalFunnelReceita > 0 ? ((totalFunnelGastos / totalFunnelReceita) * 100).toFixed(1) : '0'}% da receita
+                                    </p>
+                                </div>
+                            )}
+
+                            {/* Alerts for categories > 45% of revenue */}
+                            {funnelAlerts.length > 0 && (
+                                <div className="space-y-2">
+                                    {funnelAlerts.map((alert, i) => (
+                                        <div key={i} className="flex items-start gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                                            </svg>
+                                            <div>
+                                                <p className="text-sm font-bold text-red-700 dark:text-red-400">
+                                                    ⚠ {alert.name}: {alert.percentage}% da receita
+                                                </p>
+                                                <p className="text-xs text-red-600 dark:text-red-500 mt-0.5">
+                                                    {formatCurrency(alert.value)} de {formatCurrency(totalFunnelReceita)} arrecadados
+                                                </p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
                             <div className="space-y-2">
                                 {funnelData.map((item, index) => {
-                                    const percentage = totalFunnelGastos > 0 ? ((item.value / totalFunnelGastos) * 100).toFixed(1) : '0';
+                                    const percentGastos = totalFunnelGastos > 0 ? ((item.value / totalFunnelGastos) * 100).toFixed(1) : '0';
+                                    const percentReceita = totalFunnelReceita > 0 ? ((item.value / totalFunnelReceita) * 100).toFixed(1) : null;
+                                    const isHighAlert = percentReceita !== null && parseFloat(percentReceita) >= 45;
                                     return (
-                                        <div key={index} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors">
+                                        <div key={index} className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${isHighAlert ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800' : 'bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-900'}`}>
                                             <div
                                                 className="w-3 h-3 rounded-full flex-shrink-0"
                                                 style={{ backgroundColor: item.fill }}
                                             />
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">{item.name}</p>
+                                                <p className={`text-sm font-medium truncate ${isHighAlert ? 'text-red-700 dark:text-red-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                                                    {item.name}
+                                                    {isHighAlert && <span className="ml-1 text-xs">⚠</span>}
+                                                </p>
                                                 <div className="flex items-center gap-2 mt-1">
                                                     <div className="flex-1 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
                                                         <div
                                                             className="h-full rounded-full transition-all duration-500"
-                                                            style={{ width: `${percentage}%`, backgroundColor: item.fill }}
+                                                            style={{ width: `${percentReceita || percentGastos}%`, backgroundColor: isHighAlert ? '#ef4444' : item.fill }}
                                                         />
                                                     </div>
-                                                    <span className="text-xs text-slate-500 dark:text-slate-400 font-medium w-10 text-right">{percentage}%</span>
+                                                    <span className={`text-xs font-medium w-12 text-right ${isHighAlert ? 'text-red-500' : 'text-slate-500 dark:text-slate-400'}`}>
+                                                        {percentReceita ? `${percentReceita}%` : `${percentGastos}%`}
+                                                    </span>
                                                 </div>
+                                                {percentReceita && (
+                                                    <p className="text-[10px] text-slate-400 mt-0.5">
+                                                        {percentReceita}% da receita • {percentGastos}% dos gastos
+                                                    </p>
+                                                )}
                                             </div>
                                             <span className="text-sm font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">{formatCurrency(item.value)}</span>
                                         </div>
