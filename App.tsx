@@ -391,9 +391,9 @@ const InnerApp: React.FC = () => {
       } else {
         await addManutencao({ ...manutencao, status: 'Em aberto', documentos_anexados: [] });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar manutenção:', error);
-      alert('Erro ao salvar manutenção. Verifique o console para mais detalhes.');
+      alert(`Erro ao salvar manutenção: ${error?.message || error?.details || JSON.stringify(error)}`);
     }
   };
 

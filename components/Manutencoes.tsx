@@ -7,7 +7,7 @@ import { exportToExcel } from '../utils/export';
 interface ManutencoesProps {
   manutencoes: Manutencao[];
   veiculos: Veiculo[];
-  onAddManutencao: (manutencao: Omit<Manutencao, 'id'>, parcelas?: number) => void;
+  onAddManutencao: (manutencao: Omit<Manutencao, 'id'>, parcelas?: number) => Promise<void>;
   onDeleteManutencao: (id: number) => void;
   onAnexarDocumento: (manutencaoId: number, fileName: string) => void;
   onUpdateManutencao: (manutencao: Manutencao) => void;
@@ -76,13 +76,17 @@ const Manutencoes: React.FC<ManutencoesProps> = ({
     setEditingManutencao(prev => prev ? { ...prev, [name]: processedValue } : null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onAddManutencao(newManutencao, isParcelado ? numParcelas : 1);
-    setIsAddModalOpen(false);
-    setNewManutencao(initialFormState);
-    setIsParcelado(false);
-    setNumParcelas(1);
+    try {
+      await onAddManutencao(newManutencao, isParcelado ? numParcelas : 1);
+      setIsAddModalOpen(false);
+      setNewManutencao(initialFormState);
+      setIsParcelado(false);
+      setNumParcelas(1);
+    } catch (error) {
+      // Error is handled in App.tsx handler
+    }
   };
 
   const handleEditSubmit = (e: React.FormEvent) => {
