@@ -143,8 +143,72 @@ const InnerApp: React.FC = () => {
     }
   };
 
-  const handleUpdateVeiculo = async (updatedVeiculo: Veiculo) => {
+  const handleUpdateVeiculo = async (updatedVeiculo: Veiculo, saleConfig?: { tipo: 'avista' | 'parcelado'; valorEntrada: number; numParcelas: number }) => {
+    const previousVeiculo = veiculos.find(v => v.id === updatedVeiculo.id);
     await updateVeiculo(updatedVeiculo);
+
+    // Auto-generate sale revenue when status changes to "Vendido"
+    if (updatedVeiculo.status === 'Vendido'
+        && previousVeiculo?.status !== 'Vendido'
+        && updatedVeiculo.valor_venda && updatedVeiculo.valor_venda > 0) {
+
+      // Check for duplicate
+      const alreadyExists = receitas.some(r =>
+        r.tipo.includes('Venda de Veículo') && r.veiculo_placa === updatedVeiculo.placa
+      );
+
+      if (!alreadyExists) {
+        const today = new Date().toISOString().split('T')[0];
+        const placa = updatedVeiculo.placa;
+        const veiculoId = updatedVeiculo.id;
+
+        if (!saleConfig || saleConfig.tipo === 'avista') {
+          // À vista: single receita, status Pago
+          await addReceita({
+            tipo: `Venda de Veículo (${placa})`,
+            veiculo_placa: placa,
+            veiculo_id: veiculoId,
+            data: today,
+            valor: updatedVeiculo.valor_venda,
+            status: 'Pago' as StatusPagamento,
+          });
+        } else {
+          // Parcelado
+          const parcelamento_id = `p-venda-${Date.now()}`;
+
+          // Entrada (if any)
+          if (saleConfig.valorEntrada > 0) {
+            await addReceita({
+              tipo: `Venda de Veículo - Entrada (${placa})`,
+              veiculo_placa: placa,
+              veiculo_id: veiculoId,
+              data: today,
+              valor: saleConfig.valorEntrada,
+              status: 'Pago' as StatusPagamento,
+              parcelamento_id,
+            });
+          }
+
+          // Installments for remaining balance
+          const saldo = updatedVeiculo.valor_venda - saleConfig.valorEntrada;
+          const valorParcela = saldo / saleConfig.numParcelas;
+
+          for (let i = 0; i < saleConfig.numParcelas; i++) {
+            const date = new Date(today + 'T12:00:00');
+            date.setMonth(date.getMonth() + (i + 1));
+            await addReceita({
+              tipo: `Venda de Veículo (${placa}) ${i + 1}/${saleConfig.numParcelas}`,
+              veiculo_placa: placa,
+              veiculo_id: veiculoId,
+              data: date.toISOString().split('T')[0],
+              valor: valorParcela,
+              status: 'Em aberto' as StatusPagamento,
+              parcelamento_id,
+            });
+          }
+        }
+      }
+    }
   };
 
   const handleDeleteVeiculo = async (id: number) => {
@@ -578,6 +642,7 @@ const InnerApp: React.FC = () => {
         multas={multas}
         despesas={despesas}
         sinistros={sinistros}
+        receitas={receitas}
         onAddVeiculo={handleAddVeiculo}
         onDeleteVeiculo={handleDeleteVeiculo}
         onUpdateVeiculo={handleUpdateVeiculo}

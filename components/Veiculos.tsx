@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Veiculo, StatusVeiculo, Contrato, Manutencao, Multa, Despesa, Sinistro } from '../types';
+import { Veiculo, StatusVeiculo, Contrato, Manutencao, Multa, Despesa, Sinistro, Receita } from '../types';
 import { Table, Header, Modal, Badge, EmptyState } from './ui';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import { validateVeiculo, formatPlaca, ValidationErrors } from '../utils/validation';
@@ -9,6 +9,12 @@ import FipeLookup from './FipeLookup';
 import { FipeValor, parseValorFipe } from '../services/fipe';
 import { uploadVehiclePhoto } from '../services/storage';
 
+interface SaleConfig {
+    tipo: 'avista' | 'parcelado';
+    valorEntrada: number;
+    numParcelas: number;
+}
+
 interface VeiculosProps {
     veiculos: Veiculo[];
     contratos: Contrato[];
@@ -16,9 +22,10 @@ interface VeiculosProps {
     multas: Multa[];
     despesas: Despesa[];
     sinistros: Sinistro[];
+    receitas: Receita[];
     onAddVeiculo: (veiculo: Omit<Veiculo, 'id' | 'codigo'>) => void;
     onDeleteVeiculo: (id: number) => void;
-    onUpdateVeiculo: (veiculo: Veiculo) => void;
+    onUpdateVeiculo: (veiculo: Veiculo, saleConfig?: SaleConfig) => void;
 }
 
 interface VeiculoFormState {
@@ -224,7 +231,7 @@ const FormField: React.FC<{
     </div>
 );
 
-const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, multas, despesas, sinistros, onAddVeiculo, onDeleteVeiculo, onUpdateVeiculo }) => {
+const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, multas, despesas, sinistros, receitas, onAddVeiculo, onDeleteVeiculo, onUpdateVeiculo }) => {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [newVehicle, setNewVehicle] = useState<VeiculoFormState>(initialFormState);
@@ -235,18 +242,29 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
     const [errors, setErrors] = useState<ValidationErrors>({});
     const [photoFile, setPhotoFile] = useState<File | null>(null);
     const [uploading, setUploading] = useState(false);
+    const [saleConfig, setSaleConfig] = useState<SaleConfig>({ tipo: 'avista', valorEntrada: 0, numParcelas: 1 });
 
     // Calculate financials for all vehicles
     const financials = useMemo(() => {
         const stats: { [key: number]: FinancialData } = {};
 
         veiculos.forEach(v => {
-            // Revenue
+            // Revenue from contracts (operating)
             const vehicleContracts = contratos.filter(c => c.veiculo_id === v.id);
-            const receitaTotal = vehicleContracts.reduce((sum, c) => {
+            const receitaContratos = vehicleContracts.reduce((sum, c) => {
                 const paid = c.pagamentos?.filter(p => p.status === 'Pago') || [];
                 return sum + paid.reduce((sub, p) => sub + (p.valor || 0), 0);
             }, 0);
+
+            // Revenue from vehicle sale (receitas tagged as sale)
+            const receitaVendaPaga = receitas
+                .filter(r => r.veiculo_placa === v.placa && r.tipo.includes('Venda de Veículo') && r.status === 'Pago')
+                .reduce((sum, r) => sum + r.valor, 0);
+            const receitaVendaTotal = receitas
+                .filter(r => r.veiculo_placa === v.placa && r.tipo.includes('Venda de Veículo'))
+                .reduce((sum, r) => sum + r.valor, 0);
+
+            const receitaTotal = receitaContratos;
 
             // Costs
             const custoManutencao = manutencoes
@@ -257,9 +275,9 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
                 .filter(m => m.veiculoPlaca === v.placa)
                 .reduce((sum, m) => sum + (m.valor || 0), 0);
 
-            const custoSinistros = (sinistros || []) // sinistros might not have value in standard type, assume 0 or need refactor if value exists
+            const custoSinistros = (sinistros || [])
                 .filter(s => s.veiculoPlaca === v.placa)
-                .reduce((sum, s) => sum + 0, 0); // TODO: Add value to Sinistro type if needed
+                .reduce((sum, s) => sum + 0, 0);
 
             const custoOutros = despesas
                 .filter(d => d.veiculo_placa === v.placa)
@@ -268,10 +286,17 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
             const totalCustos = custoManutencao + custoMultas + custoSinistros + custoOutros;
             const lucroOperacional = receitaTotal - totalCustos;
 
-            // Use Sale Value if set, otherwise use current FIPE value
-            const valorFinal = (v.valor_venda && v.valor_venda > 0) ? v.valor_venda : v.valor_fipe;
+            // Exit value: for sold vehicles use committed sale value (from receitas), for others use FIPE
+            let valorFinal: number;
+            if (v.status === 'Vendido' && receitaVendaTotal > 0) {
+                valorFinal = receitaVendaTotal; // committed sale value from receitas
+            } else if (v.valor_venda && v.valor_venda > 0) {
+                valorFinal = v.valor_venda;
+            } else {
+                valorFinal = v.valor_fipe;
+            }
 
-            // Real Profitability: (Revenue + Final Value) - (Initial Investment + Costs)
+            // Real Profitability: (Operating Revenue + Exit Value) - (Purchase + Costs)
             const rentabilidadeReal = (receitaTotal + valorFinal) - (v.valor_compra + totalCustos);
             const investimentoTotal = v.valor_compra + totalCustos;
             const rentabilidadePercentual = investimentoTotal > 0 ? (rentabilidadeReal / investimentoTotal) * 100 : 0;
@@ -290,7 +315,7 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
         });
 
         return stats;
-    }, [veiculos, contratos, manutencoes, multas, despesas, sinistros]);
+    }, [veiculos, contratos, manutencoes, multas, despesas, sinistros, receitas]);
 
     const handleDeleteClick = (veiculo: Veiculo) => {
         setVehicleToDelete(veiculo);
@@ -298,8 +323,9 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
 
     const handleEditClick = (veiculo: Veiculo) => {
         setEditingVehicle({ ...veiculo });
+        setSaleConfig({ tipo: 'avista', valorEntrada: 0, numParcelas: 1 });
         setErrors({});
-        setPhotoFile(null); // Clear previous file selection
+        setPhotoFile(null);
         setIsEditModalOpen(true);
     };
 
@@ -417,6 +443,28 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
             return;
         }
 
+        // Validate sale if status is Vendido
+        if (vehicleToSave.status === 'Vendido') {
+            if (!vehicleToSave.valor_venda || vehicleToSave.valor_venda <= 0) {
+                setErrors(prev => ({ ...prev, valor_venda: 'Informe o valor de venda para registrar a venda.' }));
+                return;
+            }
+            if (saleConfig.tipo === 'parcelado') {
+                if (saleConfig.valorEntrada < 0) {
+                    alert('O valor da entrada não pode ser negativo.');
+                    return;
+                }
+                if (saleConfig.valorEntrada >= vehicleToSave.valor_venda) {
+                    alert('O valor da entrada deve ser menor que o valor de venda.');
+                    return;
+                }
+                if (saleConfig.numParcelas < 1) {
+                    alert('O número de parcelas deve ser pelo menos 1.');
+                    return;
+                }
+            }
+        }
+
         try {
             setUploading(true);
             let foto_url = editingVehicle.foto_url;
@@ -425,14 +473,18 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
                 foto_url = await uploadVehiclePhoto(photoFile, editingVehicle.placa);
             }
 
-            // Format placa
             const formattedVehicle = {
                 ...vehicleToSave,
                 placa: formatPlaca(vehicleToSave.placa),
                 foto_url: foto_url
             };
 
-            onUpdateVeiculo(formattedVehicle);
+            // Pass sale config if selling
+            if (formattedVehicle.status === 'Vendido' && formattedVehicle.valor_venda > 0) {
+                onUpdateVeiculo(formattedVehicle, saleConfig);
+            } else {
+                onUpdateVeiculo(formattedVehicle);
+            }
             setIsEditModalOpen(false);
             setEditingVehicle(null);
             setPhotoFile(null);
@@ -656,7 +708,6 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
                             <FormField label="KM Atual" name="km_atual" type="number" value={editingVehicle.km_atual} onChange={handleEditInputChange} />
                             <FormField label="Valor de Compra" name="valor_compra" type="number" value={editingVehicle.valor_compra} onChange={handleEditInputChange} error={errors.valor_compra} />
                             <FormField label="Valor FIPE" name="valor_fipe" type="number" value={editingVehicle.valor_fipe} onChange={handleEditInputChange} error={errors.valor_fipe} />
-                            <FormField label="Valor de Venda (Opcional)" name="valor_venda" type="number" value={editingVehicle.valor_venda || ''} onChange={handleEditInputChange} />
                             <FormField label="Data da Compra" name="data_compra" type="date" value={editingVehicle.data_compra} onChange={handleEditInputChange} />
                             <FormField label="Vencimento do Seguro" name="vencimento_seguro" type="date" value={editingVehicle.vencimento_seguro} onChange={handleEditInputChange} />
                             <div>
@@ -674,6 +725,107 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
                                     <option value="Vendido">Vendido</option>
                                 </select>
                             </div>
+
+                            {/* Sale Configuration Panel */}
+                            {editingVehicle.status === 'Vendido' && (
+                                <div className="md:col-span-2 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 space-y-4">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-600" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                                        </svg>
+                                        <h4 className="font-bold text-amber-800 dark:text-amber-300">Configuração da Venda</h4>
+                                    </div>
+                                    <p className="text-xs text-amber-700 dark:text-amber-400 -mt-2">O valor será registrado automaticamente no seu fluxo financeiro.</p>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Valor de Venda (R$) <span className="text-red-500">*</span></label>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                name="valor_venda"
+                                                value={editingVehicle.valor_venda || ''}
+                                                onChange={handleEditInputChange}
+                                                className={`mt-1 block w-full rounded-md shadow-sm sm:text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white ${errors.valor_venda ? 'border-red-300 focus:border-red-500 focus:ring-red-500' : 'border-slate-300 dark:border-slate-600 focus:border-petrol-blue-500 focus:ring-petrol-blue-500'}`}
+                                                required
+                                            />
+                                            {errors.valor_venda && <p className="mt-1 text-sm text-red-600">{errors.valor_venda}</p>}
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Forma de Pagamento</label>
+                                            <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg mt-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSaleConfig(prev => ({ ...prev, tipo: 'avista' }))}
+                                                    className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${saleConfig.tipo === 'avista' ? 'bg-white dark:bg-slate-600 text-green-600 shadow-sm' : 'text-slate-500'}`}
+                                                >
+                                                    À Vista
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setSaleConfig(prev => ({ ...prev, tipo: 'parcelado' }))}
+                                                    className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${saleConfig.tipo === 'parcelado' ? 'bg-white dark:bg-slate-600 text-blue-600 shadow-sm' : 'text-slate-500'}`}
+                                                >
+                                                    Parcelado
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {saleConfig.tipo === 'parcelado' && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-amber-200 dark:border-amber-800">
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Valor da Entrada (R$)</label>
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    min="0"
+                                                    value={saleConfig.valorEntrada || ''}
+                                                    onChange={(e) => setSaleConfig(prev => ({ ...prev, valorEntrada: parseFloat(e.target.value) || 0 }))}
+                                                    placeholder="0,00 (sem entrada)"
+                                                    className="mt-1 block w-full rounded-md border-slate-300 dark:border-slate-600 shadow-sm focus:border-petrol-blue-500 focus:ring-petrol-blue-500 sm:text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Nº de Parcelas (saldo)</label>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    value={saleConfig.numParcelas}
+                                                    onChange={(e) => setSaleConfig(prev => ({ ...prev, numParcelas: parseInt(e.target.value) || 1 }))}
+                                                    className="mt-1 block w-full rounded-md border-slate-300 dark:border-slate-600 shadow-sm focus:border-petrol-blue-500 focus:ring-petrol-blue-500 sm:text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+                                                />
+                                            </div>
+                                            {Number(editingVehicle.valor_venda) > 0 && (
+                                                <div className="md:col-span-2 bg-white dark:bg-slate-800 p-3 rounded-lg border border-slate-200 dark:border-slate-700">
+                                                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                                                        {saleConfig.valorEntrada > 0 && (
+                                                            <span className="block mb-1">
+                                                                <span className="font-semibold text-green-600">Entrada:</span> {formatCurrency(saleConfig.valorEntrada)} (recebido na venda)
+                                                            </span>
+                                                        )}
+                                                        <span className="font-semibold text-blue-600">Saldo:</span>{' '}
+                                                        {saleConfig.numParcelas}x de{' '}
+                                                        {formatCurrency((Number(editingVehicle.valor_venda) - saleConfig.valorEntrada) / saleConfig.numParcelas)}
+                                                        {' '}= {formatCurrency(Number(editingVehicle.valor_venda) - saleConfig.valorEntrada)}
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {saleConfig.tipo === 'avista' && (
+                                        <p className="text-xs text-green-700 dark:text-green-400 italic">
+                                            ✓ Receita de {formatCurrency(Number(editingVehicle.valor_venda) || 0)} será registrada como paga.
+                                        </p>
+                                    )}
+                                </div>
+                            )}
+
+                            {editingVehicle.status !== 'Vendido' && (
+                                <FormField label="Valor de Venda (Opcional)" name="valor_venda" type="number" value={editingVehicle.valor_venda || ''} onChange={handleEditInputChange} />
+                            )}
                             <div className="md:col-span-2">
                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Atualizar Foto</label>
                                 <input
