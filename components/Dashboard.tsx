@@ -51,6 +51,7 @@ const CustomLegend = ({ payload }: any) => {
 
 const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, despesas, manutencoes, receitas, multas }) => {
     const [funnelVeiculoFilter, setFunnelVeiculoFilter] = useState<string>('todos');
+    const [chartViewMode, setChartViewMode] = useState<'realizado' | 'previsto' | 'ambos'>('ambos');
     const totalVeiculos = veiculos.length;
     const locados = veiculos.filter(v => v.status === 'Locado').length;
     const parados = totalVeiculos - locados;
@@ -111,32 +112,69 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
     }, [veiculos, contratos, receitas, despesas, manutencoes, multas]);
 
     const dataGraficoReceitaDespesa = useMemo(() => {
-        const data: { name: string, Receita: number, Despesas: number }[] = [];
-        const today = new Date();
-        for (let i = 6; i >= 0; i--) {
-            const date = new Date(today.getFullYear(), today.getMonth() - i, 1);
-            const monthName = date.toLocaleString('pt-BR', { month: 'short' }).replace('.', '');
-            const month = date.getMonth();
-            const year = date.getFullYear();
+        const data: { name: string, ReceitaRealizada: number, ReceitaPrevista: number, DespesaRealizada: number, DespesaPrevista: number }[] = [];
+        const currentYear = new Date().getFullYear();
+        const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
-            const receita = contratos.flatMap(c => c.pagamentos || [])
+        for (let month = 0; month < 12; month++) {
+            // --- Receitas ---
+            // Realizada: pagamentos de contratos com status 'Pago' + receitas manuais com status 'Pago'
+            const receitaContratosRealizada = contratos.flatMap(c => c.pagamentos || [])
                 .filter(p => {
                     const pDate = new Date(p.vencimento);
-                    return p.status === 'Pago' && pDate.getMonth() === month && pDate.getFullYear() === year;
+                    return p.status === 'Pago' && pDate.getMonth() === month && pDate.getFullYear() === currentYear;
                 })
                 .reduce((sum, p) => sum + p.valor, 0);
 
-            const despesa = [...despesas, ...manutencoes]
+            const receitaManualRealizada = receitas
+                .filter(r => {
+                    const rDate = new Date(r.data);
+                    return r.status === 'Pago' && rDate.getMonth() === month && rDate.getFullYear() === currentYear;
+                })
+                .reduce((sum, r) => sum + r.valor, 0);
+
+            // Prevista: pagamentos de contratos com status 'Em aberto' ou 'Atrasado' + receitas manuais com status 'Em aberto' ou 'Atrasado'
+            const receitaContratosPrevista = contratos.flatMap(c => c.pagamentos || [])
+                .filter(p => {
+                    const pDate = new Date(p.vencimento);
+                    return (p.status === 'Em aberto' || p.status === 'Atrasado') && pDate.getMonth() === month && pDate.getFullYear() === currentYear;
+                })
+                .reduce((sum, p) => sum + p.valor, 0);
+
+            const receitaManualPrevista = receitas
+                .filter(r => {
+                    const rDate = new Date(r.data);
+                    return (r.status === 'Em aberto' || r.status === 'Atrasado') && rDate.getMonth() === month && rDate.getFullYear() === currentYear;
+                })
+                .reduce((sum, r) => sum + r.valor, 0);
+
+            // --- Despesas ---
+            // Realizada: despesas + manutenções com status 'Paga'
+            const despesaRealizada = [...despesas, ...manutencoes]
                 .filter(d => {
                     const dDate = new Date(d.data);
-                    return d.status === 'Paga' && dDate.getMonth() === month && dDate.getFullYear() === year;
+                    return d.status === 'Paga' && dDate.getMonth() === month && dDate.getFullYear() === currentYear;
                 })
                 .reduce((sum, d) => sum + d.valor, 0);
 
-            data.push({ name: monthName.charAt(0).toUpperCase() + monthName.slice(1), Receita: receita, Despesas: despesa });
+            // Prevista: despesas + manutenções com status 'Em aberto'
+            const despesaPrevista = [...despesas, ...manutencoes]
+                .filter(d => {
+                    const dDate = new Date(d.data);
+                    return d.status === 'Em aberto' && dDate.getMonth() === month && dDate.getFullYear() === currentYear;
+                })
+                .reduce((sum, d) => sum + d.valor, 0);
+
+            data.push({
+                name: MONTH_NAMES[month],
+                ReceitaRealizada: receitaContratosRealizada + receitaManualRealizada,
+                ReceitaPrevista: receitaContratosPrevista + receitaManualPrevista,
+                DespesaRealizada: despesaRealizada,
+                DespesaPrevista: despesaPrevista,
+            });
         }
         return data;
-    }, [contratos, despesas, manutencoes]);
+    }, [contratos, despesas, manutencoes, receitas]);
 
     const dataGraficoOcupacao = useMemo(() => {
         const data: { name: string, Ocupação: number }[] = [];
@@ -322,26 +360,50 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6">
                 {/* Revenue vs Expenses Bar Chart */}
                 <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
-                    <div className="flex items-center justify-between mb-6">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-3">
                         <div>
                             <h3 className="font-semibold text-slate-800 dark:text-white">Receitas vs Despesas</h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">Últimos 7 meses</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">Janeiro a Dezembro — {new Date().getFullYear()}</p>
                         </div>
-                        <div className="flex items-center gap-2 px-3 py-1 bg-green-50 dark:bg-green-900/30 rounded-full">
-                            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                            <span className="text-xs font-medium text-green-700 dark:text-green-400">Ao vivo</span>
+                        <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-lg">
+                            <button
+                                onClick={() => setChartViewMode('realizado')}
+                                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${chartViewMode === 'realizado' ? 'bg-white dark:bg-slate-700 text-green-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                Realizado
+                            </button>
+                            <button
+                                onClick={() => setChartViewMode('previsto')}
+                                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${chartViewMode === 'previsto' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                Previsto
+                            </button>
+                            <button
+                                onClick={() => setChartViewMode('ambos')}
+                                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${chartViewMode === 'ambos' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                Ambos
+                            </button>
                         </div>
                     </div>
-                    <ResponsiveContainer width="100%" height={280}>
-                        <BarChart data={dataGraficoReceitaDespesa} barGap={8}>
+                    <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={dataGraficoReceitaDespesa} barGap={2} barCategoryGap="12%">
                             <defs>
-                                <linearGradient id="receitaGradient" x1="0" y1="0" x2="0" y2="1">
+                                <linearGradient id="receitaRealizadaGrad" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="0%" stopColor="#22c55e" stopOpacity={1} />
                                     <stop offset="100%" stopColor="#16a34a" stopOpacity={0.8} />
                                 </linearGradient>
-                                <linearGradient id="despesaGradient" x1="0" y1="0" x2="0" y2="1">
+                                <linearGradient id="receitaPrevistaGrad" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#86efac" stopOpacity={0.7} />
+                                    <stop offset="100%" stopColor="#4ade80" stopOpacity={0.4} />
+                                </linearGradient>
+                                <linearGradient id="despesaRealizadaGrad" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="0%" stopColor="#f97316" stopOpacity={1} />
                                     <stop offset="100%" stopColor="#ea580c" stopOpacity={0.8} />
+                                </linearGradient>
+                                <linearGradient id="despesaPrevistaGrad" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor="#fdba74" stopOpacity={0.7} />
+                                    <stop offset="100%" stopColor="#fb923c" stopOpacity={0.4} />
                                 </linearGradient>
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" className="dark:stroke-slate-700" vertical={false} />
@@ -349,7 +411,7 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                                 dataKey="name"
                                 axisLine={false}
                                 tickLine={false}
-                                tick={{ fill: '#64748b', fontSize: 12 }}
+                                tick={{ fill: '#64748b', fontSize: 11 }}
                             />
                             <YAxis
                                 axisLine={false}
@@ -359,8 +421,18 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                             />
                             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.05)' }} />
                             <Legend content={<CustomLegend />} />
-                            <Bar dataKey="Receita" fill="url(#receitaGradient)" radius={[6, 6, 0, 0]} />
-                            <Bar dataKey="Despesas" fill="url(#despesaGradient)" radius={[6, 6, 0, 0]} />
+                            {(chartViewMode === 'realizado' || chartViewMode === 'ambos') && (
+                                <Bar dataKey="ReceitaRealizada" name="Receita Realizada" fill="url(#receitaRealizadaGrad)" radius={[4, 4, 0, 0]} />
+                            )}
+                            {(chartViewMode === 'previsto' || chartViewMode === 'ambos') && (
+                                <Bar dataKey="ReceitaPrevista" name="Receita Prevista" fill="url(#receitaPrevistaGrad)" radius={[4, 4, 0, 0]} strokeDasharray="4 2" stroke="#22c55e" strokeWidth={1} />
+                            )}
+                            {(chartViewMode === 'realizado' || chartViewMode === 'ambos') && (
+                                <Bar dataKey="DespesaRealizada" name="Despesa Realizada" fill="url(#despesaRealizadaGrad)" radius={[4, 4, 0, 0]} />
+                            )}
+                            {(chartViewMode === 'previsto' || chartViewMode === 'ambos') && (
+                                <Bar dataKey="DespesaPrevista" name="Despesa Prevista" fill="url(#despesaPrevistaGrad)" radius={[4, 4, 0, 0]} strokeDasharray="4 2" stroke="#f97316" strokeWidth={1} />
+                            )}
                         </BarChart>
                     </ResponsiveContainer>
                 </div>
