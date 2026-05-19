@@ -7,7 +7,7 @@ import { exportToExcel } from '../utils/export';
 interface ManutencoesProps {
   manutencoes: Manutencao[];
   veiculos: Veiculo[];
-  onAddManutencao: (manutencao: Omit<Manutencao, 'id'>) => void;
+  onAddManutencao: (manutencao: Omit<Manutencao, 'id'>, parcelas?: number) => void;
   onDeleteManutencao: (id: number) => void;
   onAnexarDocumento: (manutencaoId: number, fileName: string) => void;
   onUpdateManutencao: (manutencao: Manutencao) => void;
@@ -38,6 +38,9 @@ const Manutencoes: React.FC<ManutencoesProps> = ({
   const [manutencaoToDelete, setManutencaoToDelete] = useState<Manutencao | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentManutencaoId, setCurrentManutencaoId] = useState<number | null>(null);
+  
+  const [isParcelado, setIsParcelado] = useState(false);
+  const [numParcelas, setNumParcelas] = useState(1);
 
   const handleDeleteClick = (manutencao: Manutencao) => {
     setManutencaoToDelete(manutencao);
@@ -75,9 +78,11 @@ const Manutencoes: React.FC<ManutencoesProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onAddManutencao(newManutencao);
+    onAddManutencao(newManutencao, isParcelado ? numParcelas : 1);
     setIsAddModalOpen(false);
     setNewManutencao(initialFormState);
+    setIsParcelado(false);
+    setNumParcelas(1);
   };
 
   const handleEditSubmit = (e: React.FormEvent) => {
@@ -165,6 +170,8 @@ Este é um documento de simulação para o arquivo: ${documento.nome}
         <button
           onClick={() => {
             setNewManutencao(initialFormState);
+            setIsParcelado(false);
+            setNumParcelas(1);
             setIsAddModalOpen(true);
           }}
           className="inline-flex items-center justify-center rounded-md bg-petrol-blue-700 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-petrol-blue-800 focus:outline-none focus:ring-2 focus:ring-petrol-blue-500 focus:ring-offset-2"
@@ -311,6 +318,42 @@ Este é um documento de simulação para o arquivo: ${documento.nome}
               <label htmlFor="fornecedor" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Fornecedor / Oficina <span className="text-red-500">*</span></label>
               <input type="text" name="fornecedor" id="fornecedor" value={newManutencao.fornecedor} onChange={handleInputChange} required className="mt-1 block w-full rounded-md border-slate-300 dark:border-slate-600 shadow-sm focus:border-petrol-blue-500 focus:ring-petrol-blue-500 sm:text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white" />
             </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Forma de Pagamento</label>
+              <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg mt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsParcelado(false)}
+                  className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${!isParcelado ? 'bg-white dark:bg-slate-600 text-green-600 shadow-sm' : 'text-slate-500'}`}
+                >
+                  À Vista
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsParcelado(true)}
+                  className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${isParcelado ? 'bg-white dark:bg-slate-600 text-blue-600 shadow-sm' : 'text-slate-500'}`}
+                >
+                  Parcelado
+                </button>
+              </div>
+            </div>
+
+            {isParcelado && (
+              <div>
+                <label htmlFor="numParcelas" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Nº de Parcelas</label>
+                <input
+                  type="number"
+                  id="numParcelas"
+                  min="2"
+                  max="48"
+                  value={numParcelas}
+                  onChange={(e) => setNumParcelas(parseInt(e.target.value) || 2)}
+                  className="mt-1 block w-full rounded-md border-slate-300 dark:border-slate-600 shadow-sm focus:border-petrol-blue-500 focus:ring-petrol-blue-500 sm:text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white"
+                />
+              </div>
+            )}
+            
             <div>
               <label htmlFor="status" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Status</label>
               <select name="status" id="status" value={newManutencao.status} onChange={handleInputChange} className="mt-1 block w-full rounded-md border-slate-300 dark:border-slate-600 shadow-sm focus:border-petrol-blue-500 focus:ring-petrol-blue-500 sm:text-sm bg-white dark:bg-slate-700 text-slate-900 dark:text-white">

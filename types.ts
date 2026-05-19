@@ -97,6 +97,7 @@ export interface Manutencao {
     fornecedor: string;
     status: StatusPagamentoDespesa;
     documentos_anexados?: DocumentoAnexado[];
+    parcelamento_id?: string;
 }
 
 export interface Multa {

@@ -370,8 +370,26 @@ const InnerApp: React.FC = () => {
   };
 
   // --- Manutencao Handlers ---
-  const handleAddManutencao = async (manutencao: Omit<Manutencao, 'id'>) => {
-    await addManutencao({ ...manutencao, status: 'Em aberto', documentos_anexados: [] });
+  const handleAddManutencao = async (manutencao: Omit<Manutencao, 'id'>, parcelas: number = 1) => {
+    if (parcelas > 1) {
+      const installmentValue = manutencao.valor / parcelas;
+      const parcelamento_id = `p-man-${Date.now()}`;
+      for (let i = 0; i < parcelas; i++) {
+        const date = new Date(manutencao.data + 'T12:00:00');
+        date.setMonth(date.getMonth() + i);
+        await addManutencao({
+          ...manutencao,
+          valor: installmentValue,
+          data: date.toISOString().split('T')[0],
+          status: 'Em aberto',
+          documentos_anexados: [],
+          parcelamento_id,
+          tipo: `${manutencao.tipo} (${i + 1}/${parcelas})`
+        });
+      }
+    } else {
+      await addManutencao({ ...manutencao, status: 'Em aberto', documentos_anexados: [] });
+    }
   };
 
   const handleUpdateManutencao = async (updatedManutencao: Manutencao) => {
