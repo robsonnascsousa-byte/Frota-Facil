@@ -80,7 +80,10 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
 
     const { roi, roe, lucroTotal } = useMemo(() => {
         const totalInvestimento = veiculos.reduce((sum, v) => sum + (v.valor_compra || 0), 0);
-        const totalPatrimonio = veiculos.reduce((sum, v) => sum + (v.valor_fipe || 0), 0);
+        const totalPatrimonio = veiculos.reduce((sum, v) => {
+            if (v.status === 'Vendido') return sum + (v.valor_venda || 0); // patrimônio realizado
+            return sum + (v.valor_fipe || 0); // patrimônio atual
+        }, 0);
 
         const receitaContratos = contratos.flatMap(c => c.pagamentos || [])
             .filter(p => p.status === 'Pago')

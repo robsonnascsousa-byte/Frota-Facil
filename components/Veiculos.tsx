@@ -707,7 +707,20 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
                             <FormField label="Cor" name="cor" value={editingVehicle.cor} onChange={handleEditInputChange} />
                             <FormField label="KM Atual" name="km_atual" type="number" value={editingVehicle.km_atual} onChange={handleEditInputChange} />
                             <FormField label="Valor de Compra" name="valor_compra" type="number" value={editingVehicle.valor_compra} onChange={handleEditInputChange} error={errors.valor_compra} />
-                            <FormField label="Valor FIPE" name="valor_fipe" type="number" value={editingVehicle.valor_fipe} onChange={handleEditInputChange} error={errors.valor_fipe} />
+                            {editingVehicle.status === 'Vendido' ? (
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Valor FIPE (congelado)</label>
+                                    <input
+                                        type="number"
+                                        value={editingVehicle.valor_fipe}
+                                        disabled
+                                        className="mt-1 block w-full rounded-md border-slate-300 dark:border-slate-600 shadow-sm sm:text-sm bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-500 cursor-not-allowed"
+                                    />
+                                    <p className="mt-1 text-xs text-slate-400 italic">FIPE congelada após a venda.</p>
+                                </div>
+                            ) : (
+                                <FormField label="Valor FIPE" name="valor_fipe" type="number" value={editingVehicle.valor_fipe} onChange={handleEditInputChange} error={errors.valor_fipe} />
+                            )}
                             <FormField label="Data da Compra" name="data_compra" type="date" value={editingVehicle.data_compra} onChange={handleEditInputChange} />
                             <FormField label="Vencimento do Seguro" name="vencimento_seguro" type="date" value={editingVehicle.vencimento_seguro} onChange={handleEditInputChange} />
                             <div>
@@ -967,7 +980,7 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
                                 </div>
                                 <div className="border-t border-slate-200 dark:border-slate-600 my-2"></div>
                                 <div className="flex justify-between items-center">
-                                    <span className="font-bold text-slate-800 dark:text-white">Resultado Final (Se vendesse hoje)</span>
+                                    <span className="font-bold text-slate-800 dark:text-white">{selectedVehicle.status === 'Vendido' ? 'Resultado da Venda' : 'Resultado Final (Se vendesse hoje)'}</span>
                                     <span className={`text-lg font-bold ${financials[selectedVehicle.id]?.rentabilidadeReal >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                                         {formatCurrency(financials[selectedVehicle.id]?.rentabilidadeReal || 0)}
                                     </span>
