@@ -656,7 +656,13 @@ const InnerApp: React.FC = () => {
             const contrato = contratos.find(c => c.id === contratoId);
             if (contrato) updateContrato({ ...contrato, status });
           }} />;
-      case 'manutencoes': return <Manutencoes manutencoes={manutencoes} veiculos={veiculos} onAddManutencao={handleAddManutencao} onDeleteManutencao={handleDeleteManutencao} onUpdateManutencao={handleUpdateManutencao} />;
+      case 'manutencoes': return <Manutencoes manutencoes={manutencoes} veiculos={veiculos} onAddManutencao={handleAddManutencao} onDeleteManutencao={handleDeleteManutencao} onUpdateManutencao={handleUpdateManutencao} onAnexarDocumento={(manutencaoId, fileName) => {
+            const m = manutencoes.find(x => x.id === manutencaoId);
+            if (m) {
+              const docs = m.documentos_anexados || [];
+              updateManutencao({ ...m, documentos_anexados: [...docs, { id: Date.now(), nome: fileName }] });
+            }
+          }} />;
       case 'financeiro': return <Financeiro
         contratos={contratos}
         despesasManuais={despesas}
