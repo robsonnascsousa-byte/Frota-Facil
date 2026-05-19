@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, Area, AreaChart, PieChart, Pie, Cell } from 'recharts';
+import React, { useMemo, useState } from 'react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, Area, AreaChart, PieChart, Pie, Cell, FunnelChart, Funnel, LabelList } from 'recharts';
 import { Veiculo, Contrato, Documento, Despesa, Manutencao, Receita, Multa } from '../types';
 import { Card, Header } from './ui';
 import { formatCurrency, formatDate } from '../utils/formatters';
@@ -50,6 +50,7 @@ const CustomLegend = ({ payload }: any) => {
 };
 
 const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, despesas, manutencoes, receitas, multas }) => {
+    const [funnelVeiculoFilter, setFunnelVeiculoFilter] = useState<string>('todos');
     const totalVeiculos = veiculos.length;
     const locados = veiculos.filter(v => v.status === 'Locado').length;
     const parados = totalVeiculos - locados;
@@ -232,6 +233,75 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
             .sort((a, b) => b.lucro - a.lucro)
             .slice(0, 5);
     }, [veiculos, contratos, despesas, manutencoes]);
+
+    // Funnel chart data: operational expenses by category
+    const funnelData = useMemo(() => {
+        const FUNNEL_COLORS = [
+            '#6366f1', // Indigo
+            '#0ea5e9', // Sky
+            '#f59e0b', // Amber
+            '#22c55e', // Green
+            '#ef4444', // Red
+            '#8b5cf6', // Violet
+            '#ec4899', // Pink
+            '#14b8a6', // Teal
+        ];
+
+        // Filter despesas, manutencoes and multas by vehicle if needed
+        let filteredDespesas = despesas.filter(d => d.status === 'Paga');
+        let filteredManutencoes = manutencoes.filter(m => m.status === 'Paga');
+        let filteredMultas = multas.filter(m => m.status === 'Paga');
+
+        if (funnelVeiculoFilter !== 'todos') {
+            filteredDespesas = filteredDespesas.filter(d => d.veiculo_placa === funnelVeiculoFilter);
+            filteredManutencoes = filteredManutencoes.filter(m => m.veiculo_placa === funnelVeiculoFilter);
+            filteredMultas = filteredMultas.filter(m => m.veiculo_placa === funnelVeiculoFilter);
+        }
+
+        // Group despesas by tipo
+        const categorias: { [key: string]: number } = {};
+
+        filteredDespesas.forEach(d => {
+            const tipo = d.tipo || 'Outros';
+            categorias[tipo] = (categorias[tipo] || 0) + d.valor;
+        });
+
+        // Manutenções go under "Manutenção"
+        const totalManutencao = filteredManutencoes.reduce((sum, m) => sum + m.valor, 0);
+        if (totalManutencao > 0) {
+            categorias['Manutenção'] = (categorias['Manutenção'] || 0) + totalManutencao;
+        }
+
+        // Multas go under "Multas"
+        const totalMultas = filteredMultas.reduce((sum, m) => sum + m.valor, 0);
+        if (totalMultas > 0) {
+            categorias['Multas'] = (categorias['Multas'] || 0) + totalMultas;
+        }
+
+        // Convert to array and sort descending
+        return Object.entries(categorias)
+            .map(([name, value], index) => ({
+                name,
+                value,
+                fill: FUNNEL_COLORS[index % FUNNEL_COLORS.length],
+            }))
+            .sort((a, b) => b.value - a.value)
+            .map((item, index) => ({
+                ...item,
+                fill: FUNNEL_COLORS[index % FUNNEL_COLORS.length],
+            }));
+    }, [despesas, manutencoes, multas, funnelVeiculoFilter]);
+
+    const totalFunnelGastos = useMemo(() => funnelData.reduce((sum, d) => sum + d.value, 0), [funnelData]);
+
+    // Get unique vehicle plates for filter
+    const veiculoPlacas = useMemo(() => {
+        const placas = new Set<string>();
+        despesas.forEach(d => { if (d.veiculo_placa) placas.add(d.veiculo_placa); });
+        manutencoes.forEach(m => { if (m.veiculo_placa) placas.add(m.veiculo_placa); });
+        multas.forEach(m => { if (m.veiculo_placa) placas.add(m.veiculo_placa); });
+        return Array.from(placas).sort();
+    }, [despesas, manutencoes, multas]);
 
 
     return (
@@ -433,6 +503,142 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                         })}
                     </div>
                 </div>
+            </div>
+
+            {/* Funnel Chart - Operational Expenses */}
+            <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 mb-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+                    <div>
+                        <h3 className="font-semibold text-slate-800 dark:text-white">Funil de Gastos Operacionais</h3>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                            Distribuição dos custos por categoria
+                            {funnelVeiculoFilter !== 'todos' && (
+                                <span className="ml-1 text-indigo-500 font-medium">• {funnelVeiculoFilter}</span>
+                            )}
+                        </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 rounded-lg px-3 py-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                            </svg>
+                            <select
+                                id="funnel-veiculo-filter"
+                                value={funnelVeiculoFilter}
+                                onChange={(e) => setFunnelVeiculoFilter(e.target.value)}
+                                className="text-sm bg-transparent border-none focus:ring-0 text-slate-700 dark:text-slate-300 cursor-pointer pr-8"
+                            >
+                                <option value="todos">Todos os veículos</option>
+                                {veiculoPlacas.map(placa => {
+                                    const veiculo = veiculos.find(v => v.placa === placa);
+                                    return (
+                                        <option key={placa} value={placa}>
+                                            {placa}{veiculo ? ` - ${veiculo.modelo}` : ''}
+                                        </option>
+                                    );
+                                })}
+                            </select>
+                        </div>
+                        {funnelVeiculoFilter !== 'todos' && (
+                            <button
+                                onClick={() => setFunnelVeiculoFilter('todos')}
+                                className="text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 underline transition-colors"
+                            >
+                                Limpar filtro
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {funnelData.length > 0 ? (
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Funnel Chart */}
+                        <div className="lg:col-span-2">
+                            <ResponsiveContainer width="100%" height={360}>
+                                <FunnelChart>
+                                    <Tooltip
+                                        content={({ active, payload }) => {
+                                            if (active && payload && payload.length) {
+                                                const data = payload[0].payload;
+                                                const percentage = totalFunnelGastos > 0 ? ((data.value / totalFunnelGastos) * 100).toFixed(1) : '0';
+                                                return (
+                                                    <div className="bg-slate-900/95 dark:bg-slate-800/95 backdrop-blur-sm px-4 py-3 rounded-xl shadow-xl border border-slate-700/50">
+                                                        <p className="text-slate-300 text-sm font-medium mb-1">{data.name}</p>
+                                                        <p className="text-white font-bold">{formatCurrency(data.value)}</p>
+                                                        <p className="text-slate-400 text-xs mt-1">{percentage}% do total</p>
+                                                    </div>
+                                                );
+                                            }
+                                            return null;
+                                        }}
+                                    />
+                                    <Funnel
+                                        dataKey="value"
+                                        data={funnelData}
+                                        isAnimationActive
+                                        animationDuration={800}
+                                    >
+                                        <LabelList
+                                            position="right"
+                                            fill="#64748b"
+                                            stroke="none"
+                                            dataKey="name"
+                                            fontSize={13}
+                                            fontWeight={500}
+                                        />
+                                    </Funnel>
+                                </FunnelChart>
+                            </ResponsiveContainer>
+                        </div>
+
+                        {/* Summary sidebar */}
+                        <div className="space-y-3">
+                            <div className="bg-gradient-to-br from-indigo-500 to-violet-600 p-4 rounded-xl text-white">
+                                <p className="text-indigo-100 text-sm font-medium">Total de Gastos</p>
+                                <p className="text-2xl font-bold mt-1">{formatCurrency(totalFunnelGastos)}</p>
+                                <p className="text-indigo-200 text-xs mt-2">{funnelData.length} categorias</p>
+                            </div>
+                            <div className="space-y-2">
+                                {funnelData.map((item, index) => {
+                                    const percentage = totalFunnelGastos > 0 ? ((item.value / totalFunnelGastos) * 100).toFixed(1) : '0';
+                                    return (
+                                        <div key={index} className="flex items-center gap-3 p-3 rounded-lg bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-900 transition-colors">
+                                            <div
+                                                className="w-3 h-3 rounded-full flex-shrink-0"
+                                                style={{ backgroundColor: item.fill }}
+                                            />
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate">{item.name}</p>
+                                                <div className="flex items-center gap-2 mt-1">
+                                                    <div className="flex-1 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                                                        <div
+                                                            className="h-full rounded-full transition-all duration-500"
+                                                            style={{ width: `${percentage}%`, backgroundColor: item.fill }}
+                                                        />
+                                                    </div>
+                                                    <span className="text-xs text-slate-500 dark:text-slate-400 font-medium w-10 text-right">{percentage}%</span>
+                                                </div>
+                                            </div>
+                                            <span className="text-sm font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">{formatCurrency(item.value)}</span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="text-center py-12 text-slate-500 dark:text-slate-400">
+                        <svg className="w-16 h-16 mx-auto mb-3 text-slate-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+                        </svg>
+                        <p className="font-medium">Nenhum gasto encontrado</p>
+                        <p className="text-sm mt-1">
+                            {funnelVeiculoFilter !== 'todos'
+                                ? `Nenhuma despesa registrada para o veículo ${funnelVeiculoFilter}.`
+                                : 'Registre despesas para visualizar o funil de gastos.'}
+                        </p>
+                    </div>
+                )}
             </div>
 
             {/* Alerts */}
