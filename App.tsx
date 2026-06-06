@@ -769,7 +769,7 @@ const InnerApp: React.FC = () => {
 
   return (
     <div className={theme}>
-      <div className="flex bg-slate-100 dark:bg-slate-900 min-h-screen transition-colors duration-200">
+      <div className="flex min-h-screen transition-colors duration-200" style={{ background: '#0a0a0a' }}>
         <Sidebar
           isOpen={sidebarOpen}
           onToggle={() => setSidebarOpen(!sidebarOpen)}
@@ -781,18 +781,19 @@ const InnerApp: React.FC = () => {
 
         <div className="flex-1 flex flex-col min-w-0 transition-all duration-300 ml-0">
           {/* Mobile Header */}
-          <header className="bg-white dark:bg-slate-800 shadow-sm z-10 lg:hidden user-select-none">
+          <header className="z-10 lg:hidden user-select-none" style={{ background: '#141414', borderBottom: '1px solid rgba(245,241,234,0.08)' }}>
             <div className="flex items-center justify-between p-4">
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setSidebarOpen(!sidebarOpen)}
-                  className="p-2 -ml-2 rounded-md text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-petrol-blue-500"
+                  className="p-2 -ml-2 rounded-md hover:bg-gunmetal focus:outline-none"
+                  style={{ color: '#f5f1ea' }}
                 >
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                   </svg>
                 </button>
-                <span className="font-bold text-lg text-slate-800 dark:text-white">FrotaFácil</span>
+                <span style={{ fontFamily: '"Archivo Black", sans-serif', fontSize: '18px', color: '#f5f1ea' }}>CARFLIPPING<span style={{ color: '#ff2a2a' }}>.BR</span></span>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -821,7 +822,7 @@ const InnerApp: React.FC = () => {
             </div>
           </header>
 
-          <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8 scroll-smooth user-select-text">
+          <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8 scroll-smooth user-select-text" style={{ background: '#0a0a0a' }}>
             {renderContent()}
           </main>
         </div>
@@ -954,13 +955,13 @@ const App: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0a0a0a' }}>
         <div className="text-center">
-          <svg className="animate-spin h-10 w-10 text-petrol-blue-500 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+          <svg className="animate-spin h-10 w-10 mx-auto mb-4" style={{ color: '#ff2a2a' }} fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
-          <p className="text-slate-400">Carregando...</p>
+          <p style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '11px', letterSpacing: '0.15em', color: '#8a8a8a' }}>CARREGANDO...</p>
         </div>
       </div>
     );

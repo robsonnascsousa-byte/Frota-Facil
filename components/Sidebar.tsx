@@ -20,13 +20,17 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, page, currentPage, setCu
         setCurrentPage(page);
         onNavigate?.();
       }}
-      className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded-md text-sm font-medium transition-colors ${isActive
-        ? 'bg-petrol-blue-900 text-white dark:bg-petrol-blue-700'
-        : 'text-slate-300 hover:bg-petrol-blue-800 hover:text-white dark:hover:bg-petrol-blue-800'
+      className={`w-full flex items-center space-x-3 px-4 py-2.5 rounded text-sm font-medium transition-all duration-200 ${isActive
+        ? 'bg-red-line text-carbon font-bold shadow-lg shadow-red-line/20'
+        : 'text-bone/70 hover:bg-gunmetal hover:text-bone'
         }`}
+      style={isActive ? { fontFamily: '"JetBrains Mono", monospace', letterSpacing: '0.05em' } : { fontFamily: '"Inter", sans-serif' }}
     >
       {icon}
       <span>{label}</span>
+      {isActive && (
+        <span className="ml-auto w-1.5 h-1.5 rounded-full bg-carbon" />
+      )}
     </button>
   );
 };
@@ -39,32 +43,35 @@ const Icon: React.FC<{ d: string }> = ({ d }) => (
 );
 
 const ICONS: { [key in Page]: React.ReactNode } = {
-  dashboard: <Icon d="M10 2a8 8 0 100 16 8 8 0 000-16zM5 10a1 1 0 011-1h2a1 1 0 110 2H6a1 1 0 01-1-1zm4 0a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1z" />,
-  veiculos: <Icon d="M8 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM15 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />,
-  motoristas: <Icon d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />,
-  planos: <Icon d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />,
-  contratos: <Icon d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z" />,
-  manutencoes: <Icon d="M11.94 1.94a1 1 0 00-1.414 0l-8 8a1 1 0 000 1.414l8 8a1 1 0 001.414-1.414L4.828 11H18a1 1 0 100-2H4.828l7.112-7.112a1 1 0 000-1.414z" />,
-  multas: <Icon d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" />,
-  financeiro: <Icon d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />,
-  documentos: <Icon d="M7 2a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2V4a2 2 0 00-2-2H7zm0 2h6v12H7V4z" />,
-  configuracoes: <Icon d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />,
-  acessos: <Icon d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" />,
-  dre: <Icon d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" />
+  dashboard: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg>,
+  veiculos: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.293 4.293a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L13 6.414V16a1 1 0 11-2 0V6.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4zM8 4a1 1 0 011 1v10a1 1 0 11-2 0V5a1 1 0 011-1z" clipRule="evenodd" /></svg>,
+  motoristas: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015.537 4.871A6.987 6.987 0 005 21v-1a6 6 0 016-6c.34 0 .673.024 1 .071A5 5 0 016 11z" /></svg>,
+  planos: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z" /></svg>,
+  contratos: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" /></svg>,
+  manutencoes: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.96.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" /></svg>,
+  multas: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>,
+  sinistros: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>,
+  financeiro: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M8.433 7.418c.158-.103.346-.196.567-.267v1.698a2.5 2.5 0 00-1.162-.328zM11 12.849v-1.698c.22.071.408.164.567.267a2.5 2.5 0 001.162.328z" /><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.5 4.5 0 00-1.876.662A1 1 0 006.25 6.5v1.086c0 .54.328.99.79 1.162a4.502 4.502 0 001.96 1.416A2.5 2.5 0 019 13.5v1.086c0 .54-.328.99-.79 1.162A4.5 4.5 0 006.25 16.5v.092a1 1 0 102 0v-.092a2.5 2.5 0 011.876-.662A1 1 0 0011.75 15.5v-1.086c0-.54-.328-.99-.79-1.162A4.502 4.502 0 009 11.838A2.5 2.5 0 0111 9.5v-1.086c0-.54.328-.99.79-1.162A4.5 4.5 0 0013.75 6.5v-.092a1 1 0 10-2 0v.092a2.5 2.5 0 01-1.876.662 1 1 0 00-.624.456z" clipRule="evenodd" /></svg>,
+  documentos: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 1v1h8V5H6z" /></svg>,
+  configuracoes: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.96.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" /></svg>,
+  acessos: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg>,
+  dre: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" /></svg>,
 };
-// Add specific icons from heroicons
-ICONS.dashboard = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg>;
-ICONS.veiculos = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.293 4.293a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L13 6.414V16a1 1 0 11-2 0V6.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4zM8 4a1 1 0 011 1v10a1 1 0 11-2 0V5a1 1 0 011-1z" clipRule="evenodd" /></svg>; // Placeholder, real car icon is complex
-ICONS.motoristas = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015.537 4.871A6.987 6.987 0 005 21v-1a6 6 0 016-6c.34 0 .673.024 1 .071A5 5 0 016 11z" /></svg>;
-ICONS.planos = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z" /></svg>;
-ICONS.contratos = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" /></svg>;
-ICONS.manutencoes = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.96.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" /></svg>;
-ICONS.multas = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>;
-ICONS.financeiro = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M8.433 7.418c.158-.103.346-.196.567-.267v1.698a2.5 2.5 0 00-1.162-.328zM11 12.849v-1.698c.22.071.408.164.567.267a2.5 2.5 0 001.162.328z" /><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.5 4.5 0 00-1.876.662A1 1 0 006.25 6.5v1.086c0 .54.328.99.79 1.162a4.502 4.502 0 001.96 1.416A2.5 2.5 0 019 13.5v1.086c0 .54-.328.99-.79 1.162A4.5 4.5 0 006.25 16.5v.092a1 1 0 102 0v-.092a2.5 2.5 0 011.876-.662A1 1 0 0011.75 15.5v-1.086c0-.54-.328-.99-.79-1.162A4.502 4.502 0 009 11.838A2.5 2.5 0 0111 9.5v-1.086c0-.54.328-.99.79-1.162A4.5 4.5 0 0013.75 6.5v-.092a1 1 0 10-2 0v.092a2.5 2.5 0 01-1.876.662 1 1 0 00-.624.456z" clipRule="evenodd" /></svg>;
-ICONS.documentos = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 1v1h8V5H6z" /></svg>;
-ICONS.configuracoes = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.96.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" /></svg>;
-ICONS.acessos = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg>;
-ICONS.dre = <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zm6-4a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zm6-3a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" /></svg>;
+
+// Brand Logo Monogram SVG
+const LogoMonogram: React.FC<{ size?: number }> = ({ size = 32 }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="46" fill="none" stroke="#ff2a2a" strokeWidth="3"/>
+    <circle cx="50" cy="50" r="38" fill="none" stroke="#f5f1ea" strokeWidth="1"/>
+    <path d="M 28 50 L 72 50" stroke="#f5f1ea" strokeWidth="4" strokeLinecap="square"/>
+    <path d="M 65 42 L 72 50 L 65 58" stroke="#ff2a2a" strokeWidth="4" fill="none" strokeLinecap="square" strokeLinejoin="miter"/>
+    <path d="M 35 42 L 28 50 L 35 58" stroke="#ff2a2a" strokeWidth="4" fill="none" strokeLinecap="square" strokeLinejoin="miter"/>
+    <line x1="50" y1="8" x2="50" y2="14" stroke="#f5f1ea" strokeWidth="2"/>
+    <line x1="50" y1="86" x2="50" y2="92" stroke="#f5f1ea" strokeWidth="2"/>
+    <line x1="8" y1="50" x2="14" y2="50" stroke="#f5f1ea" strokeWidth="2"/>
+    <line x1="86" y1="50" x2="92" y2="50" stroke="#f5f1ea" strokeWidth="2"/>
+  </svg>
+);
 
 interface SidebarProps {
   currentPage: Page;
@@ -105,7 +112,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       {/* Mobile Overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden transition-opacity"
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-40 lg:hidden transition-opacity"
           onClick={onToggle}
         />
       )}
@@ -113,19 +120,24 @@ const Sidebar: React.FC<SidebarProps> = ({
       {/* Sidebar */}
       <aside className={`
         fixed lg:static inset-y-0 left-0 z-50
-        w-64 bg-petrol-blue-950 dark:bg-slate-950 dark:border-r dark:border-slate-800 text-white 
+        w-64 bg-carbon text-bone 
         flex-shrink-0 flex flex-col p-4
         transform transition-transform duration-300 ease-in-out
+        border-r border-red-line/10
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         {/* Header with logo and close button */}
-        <div className="flex items-center justify-between py-4 border-b border-petrol-blue-900 dark:border-slate-700">
-          <div className="text-2xl font-bold">
-            Frota<span className="text-petrol-blue-400">Fácil</span>
+        <div className="flex items-center justify-between py-4 border-b border-bone/10">
+          <div className="flex items-center gap-3">
+            <LogoMonogram size={36} />
+            <div className="flex flex-col leading-none">
+              <span className="font-display text-xl tracking-tight text-bone">CARFLIPPING</span>
+              <span className="font-mono text-[10px] tracking-[0.3em] text-red-line mt-1">.BR</span>
+            </div>
           </div>
           <button
             onClick={onToggle}
-            className="lg:hidden p-1 rounded-md hover:bg-petrol-blue-800 transition-colors"
+            className="lg:hidden p-1 rounded-md hover:bg-gunmetal transition-colors"
             aria-label="Fechar menu"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -139,15 +151,16 @@ const Sidebar: React.FC<SidebarProps> = ({
           onClick={() => {
             document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
           }}
-          className="mt-4 flex items-center justify-between px-3 py-2 text-sm text-slate-400 bg-petrol-blue-900/50 dark:bg-slate-800 rounded-md hover:bg-petrol-blue-800 dark:hover:bg-slate-700 transition-colors"
+          className="mt-4 flex items-center justify-between px-3 py-2 text-sm text-bone/40 bg-gunmetal/50 rounded hover:bg-gunmetal transition-colors"
+          style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '11px' }}
         >
           <span className="flex items-center">
             <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            Buscar...
+            BUSCAR...
           </span>
-          <kbd className="hidden sm:inline-flex px-1.5 py-0.5 text-xs font-mono bg-petrol-blue-800 dark:bg-slate-600 rounded">
+          <kbd className="hidden sm:inline-flex px-1.5 py-0.5 text-[10px] font-mono bg-carbon rounded border border-bone/10">
             Ctrl+K
           </kbd>
         </button>
@@ -163,7 +176,6 @@ const Sidebar: React.FC<SidebarProps> = ({
               currentPage={currentPage}
               setCurrentPage={setCurrentPage}
               onNavigate={() => {
-                // Fechar sidebar em mobile após navegar
                 if (window.innerWidth < 1024) {
                   onToggle();
                 }
@@ -172,12 +184,11 @@ const Sidebar: React.FC<SidebarProps> = ({
           ))}
         </nav>
 
-        {/* Footer with theme toggle */}
-        <div className="mt-auto pt-4 border-t border-petrol-blue-900 dark:border-slate-700">
-          {/* Theme Toggle */}
+        {/* Footer */}
+        <div className="mt-auto pt-4 border-t border-bone/10">
           <button
             onClick={onToggleTheme}
-            className="w-full flex items-center justify-between px-4 py-2 text-sm text-slate-300 rounded-md hover:bg-petrol-blue-800 dark:hover:bg-slate-700 transition-colors mb-4"
+            className="w-full flex items-center justify-between px-4 py-2 text-sm text-bone/50 rounded hover:bg-gunmetal transition-colors mb-3"
           >
             <span className="flex items-center">
               {isDark ? (
@@ -193,14 +204,13 @@ const Sidebar: React.FC<SidebarProps> = ({
             </span>
           </button>
 
-          {/* Logout Button */}
           <button
             onClick={() => {
               if (confirm('Deseja realmente sair do sistema?')) {
                 signOut();
               }
             }}
-            className="w-full flex items-center px-4 py-2 text-sm text-red-300 rounded-md hover:bg-red-900/30 transition-colors mb-4"
+            className="w-full flex items-center px-4 py-2 text-sm text-red-line/70 rounded hover:bg-red-line/10 hover:text-red-line transition-colors mb-4"
           >
             <svg className="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -208,9 +218,9 @@ const Sidebar: React.FC<SidebarProps> = ({
             Sair do Sistema
           </button>
 
-          <div className="text-center text-xs text-slate-400">
-            <p>© 2024 FrotaFácil</p>
-            <p>Todos os direitos reservados.</p>
+          <div className="text-center" style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '9px', letterSpacing: '0.2em', color: '#8a8a8a' }}>
+            <p>© 2026 CARFLIPPING.BR</p>
+            <p className="mt-1">RODA · VIRA · LUCRA</p>
           </div>
         </div>
       </aside>

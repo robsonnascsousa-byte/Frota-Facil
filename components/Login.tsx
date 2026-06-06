@@ -5,6 +5,21 @@ interface LoginProps {
     onSwitchToRegister?: () => void;
 }
 
+// Brand Logo Monogram
+const LogoMonogram: React.FC<{ size?: number }> = ({ size = 48 }) => (
+  <svg width={size} height={size} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="50" cy="50" r="46" fill="none" stroke="#ff2a2a" strokeWidth="3"/>
+    <circle cx="50" cy="50" r="38" fill="none" stroke="#f5f1ea" strokeWidth="1"/>
+    <path d="M 28 50 L 72 50" stroke="#f5f1ea" strokeWidth="4" strokeLinecap="square"/>
+    <path d="M 65 42 L 72 50 L 65 58" stroke="#ff2a2a" strokeWidth="4" fill="none" strokeLinecap="square" strokeLinejoin="miter"/>
+    <path d="M 35 42 L 28 50 L 35 58" stroke="#ff2a2a" strokeWidth="4" fill="none" strokeLinecap="square" strokeLinejoin="miter"/>
+    <line x1="50" y1="8" x2="50" y2="14" stroke="#f5f1ea" strokeWidth="2"/>
+    <line x1="50" y1="86" x2="50" y2="92" stroke="#f5f1ea" strokeWidth="2"/>
+    <line x1="8" y1="50" x2="14" y2="50" stroke="#f5f1ea" strokeWidth="2"/>
+    <line x1="86" y1="50" x2="92" y2="50" stroke="#f5f1ea" strokeWidth="2"/>
+  </svg>
+);
+
 const Login: React.FC<LoginProps> = ({ onSwitchToRegister }) => {
     const { signIn, isConfigured } = useAuth();
     const [email, setEmail] = useState('');
@@ -30,24 +45,24 @@ const Login: React.FC<LoginProps> = ({ onSwitchToRegister }) => {
 
     if (!isConfigured) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-petrol-blue-900 to-slate-900 p-4">
-                <div className="bg-white dark:bg-slate-800 p-8 rounded-2xl shadow-2xl max-w-md w-full">
+            <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#0a0a0a' }}>
+                <div className="p-8 rounded-lg max-w-md w-full" style={{ background: '#141414', border: '1px solid rgba(245,241,234,0.08)' }}>
                     <div className="text-center mb-6">
-                        <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <svg className="w-8 h-8 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: 'rgba(255,42,42,0.1)' }}>
+                            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="#ff2a2a">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                             </svg>
                         </div>
-                        <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-2">
+                        <h2 className="text-xl font-bold mb-2" style={{ color: '#f5f1ea', fontFamily: '"Archivo Black", sans-serif' }}>
                             Supabase não configurado
                         </h2>
-                        <p className="text-slate-600 dark:text-slate-400 text-sm">
+                        <p className="text-sm" style={{ color: '#8a8a8a' }}>
                             Configure as variáveis de ambiente para habilitar autenticação.
                         </p>
                     </div>
-                    <div className="bg-slate-100 dark:bg-slate-700 rounded-lg p-4 text-sm font-mono">
-                        <p className="text-slate-600 dark:text-slate-300">VITE_SUPABASE_URL=...</p>
-                        <p className="text-slate-600 dark:text-slate-300">VITE_SUPABASE_ANON_KEY=...</p>
+                    <div className="rounded p-4 text-sm" style={{ background: '#0a0a0a', fontFamily: '"JetBrains Mono", monospace', fontSize: '11px', color: '#8a8a8a' }}>
+                        <p>VITE_SUPABASE_URL=...</p>
+                        <p>VITE_SUPABASE_ANON_KEY=...</p>
                     </div>
                 </div>
             </div>
@@ -55,44 +70,44 @@ const Login: React.FC<LoginProps> = ({ onSwitchToRegister }) => {
     }
 
     return (
-        <div className="min-h-screen flex bg-white dark:bg-slate-900">
+        <div className="min-h-screen flex" style={{ background: '#0a0a0a' }}>
             {/* Left Side - Form */}
             <div className="flex-1 flex items-center justify-center px-4 sm:px-6 lg:px-8 relative z-10">
                 <div className="max-w-md w-full space-y-8">
                     {/* Header */}
                     <div className="text-center">
-                        <div className="inline-flex items-center gap-3 mb-2">
-                            <div className="w-12 h-12 bg-petrol-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-petrol-blue-500/20">
-                                <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                            </div>
-                            <h1 className="text-3xl font-bold text-slate-900 dark:text-white">FrotaFácil</h1>
+                        <div className="inline-flex items-center gap-4 mb-4">
+                            <LogoMonogram size={56} />
                         </div>
-                        <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-                            Acesse sua conta
+                        <div className="flex flex-col items-center gap-1 mb-2">
+                            <h1 style={{ fontFamily: '"Archivo Black", sans-serif', fontSize: '32px', letterSpacing: '-0.03em', color: '#f5f1ea' }}>
+                                CARFLIPPING<span style={{ color: '#ff2a2a' }}>.</span>BR
+                            </h1>
+                        </div>
+                        <h2 style={{ fontFamily: '"Bebas Neue", sans-serif', fontSize: '28px', letterSpacing: '0.05em', color: '#f5f1ea', marginTop: '8px' }}>
+                            ACESSE SUA CONTA
                         </h2>
-                        <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
-                            Gerencie sua frota com inteligência e eficiência
+                        <p style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '11px', letterSpacing: '0.15em', color: '#8a8a8a', marginTop: '8px' }}>
+                            RODA · VIRA · LUCRA
                         </p>
                     </div>
 
                     {/* Error Alert */}
                     {error && (
-                        <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-3">
-                            <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <div className="p-4 rounded flex items-center gap-3" style={{ background: 'rgba(255,42,42,0.1)', border: '1px solid rgba(255,42,42,0.3)' }}>
+                            <svg className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="#ff2a2a">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            <span className="text-sm text-red-700 dark:text-red-300 font-medium">{error}</span>
+                            <span className="text-sm font-medium" style={{ color: '#ff6b6b' }}>{error}</span>
                         </div>
                     )}
 
                     {/* Form */}
                     <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-                        <div className="space-y-4 rounded-md shadow-sm">
+                        <div className="space-y-4">
                             <div>
-                                <label htmlFor="email-address" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                    E-mail corporativo
+                                <label htmlFor="email-address" className="block text-sm font-medium mb-1" style={{ color: '#8a8a8a', fontFamily: '"JetBrains Mono", monospace', fontSize: '10px', letterSpacing: '0.15em' }}>
+                                    E-MAIL
                                 </label>
                                 <input
                                     id="email-address"
@@ -102,13 +117,14 @@ const Login: React.FC<LoginProps> = ({ onSwitchToRegister }) => {
                                     required
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    className="relative block w-full appearance-none rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-3 text-slate-900 dark:text-white placeholder-slate-400 focus:z-10 focus:border-petrol-blue-500 focus:outline-none focus:ring-petrol-blue-500 sm:text-sm bg-white dark:bg-slate-800 transition-colors"
+                                    className="block w-full rounded px-4 py-3 text-sm transition-all"
+                                    style={{ background: '#2a2a2a', border: '1px solid rgba(245,241,234,0.1)', color: '#f5f1ea', fontFamily: '"Inter", sans-serif' }}
                                     placeholder="seu@empresa.com"
                                 />
                             </div>
                             <div>
-                                <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
-                                    Senha
+                                <label htmlFor="password" className="block text-sm font-medium mb-1" style={{ color: '#8a8a8a', fontFamily: '"JetBrains Mono", monospace', fontSize: '10px', letterSpacing: '0.15em' }}>
+                                    SENHA
                                 </label>
                                 <input
                                     id="password"
@@ -118,7 +134,8 @@ const Login: React.FC<LoginProps> = ({ onSwitchToRegister }) => {
                                     required
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
-                                    className="relative block w-full appearance-none rounded-lg border border-slate-300 dark:border-slate-600 px-3 py-3 text-slate-900 dark:text-white placeholder-slate-400 focus:z-10 focus:border-petrol-blue-500 focus:outline-none focus:ring-petrol-blue-500 sm:text-sm bg-white dark:bg-slate-800 transition-colors"
+                                    className="block w-full rounded px-4 py-3 text-sm transition-all"
+                                    style={{ background: '#2a2a2a', border: '1px solid rgba(245,241,234,0.1)', color: '#f5f1ea', fontFamily: '"Inter", sans-serif' }}
                                     placeholder="••••••••"
                                 />
                             </div>
@@ -130,15 +147,16 @@ const Login: React.FC<LoginProps> = ({ onSwitchToRegister }) => {
                                     id="remember-me"
                                     name="remember-me"
                                     type="checkbox"
-                                    className="h-4 w-4 rounded border-slate-300 text-petrol-blue-600 focus:ring-petrol-blue-500 bg-white dark:bg-slate-700"
+                                    className="h-4 w-4 rounded"
+                                    style={{ accentColor: '#ff2a2a' }}
                                 />
-                                <label htmlFor="remember-me" className="ml-2 block text-sm text-slate-600 dark:text-slate-400">
+                                <label htmlFor="remember-me" className="ml-2 block text-sm" style={{ color: '#8a8a8a' }}>
                                     Lembrar de mim
                                 </label>
                             </div>
 
                             <div className="text-sm">
-                                <a href="#" className="font-medium text-petrol-blue-600 hover:text-petrol-blue-500">
+                                <a href="#" style={{ color: '#ff2a2a', fontFamily: '"JetBrains Mono", monospace', fontSize: '11px' }} className="hover:opacity-80 transition-opacity">
                                     Esqueceu a senha?
                                 </a>
                             </div>
@@ -146,11 +164,12 @@ const Login: React.FC<LoginProps> = ({ onSwitchToRegister }) => {
 
                         {onSwitchToRegister && (
                             <div className="text-sm text-center mt-4">
-                                <span className="text-slate-600 dark:text-slate-400">Não tem uma conta? </span>
+                                <span style={{ color: '#8a8a8a' }}>Não tem uma conta? </span>
                                 <button
                                     type="button"
                                     onClick={onSwitchToRegister}
-                                    className="font-medium text-petrol-blue-600 hover:text-petrol-blue-500 transition-colors"
+                                    className="font-medium transition-opacity hover:opacity-80"
+                                    style={{ color: '#ff2a2a' }}
                                 >
                                     Cadastre-se
                                 </button>
@@ -161,19 +180,26 @@ const Login: React.FC<LoginProps> = ({ onSwitchToRegister }) => {
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="group relative flex w-full justify-center rounded-lg border border-transparent bg-petrol-blue-600 py-3 px-4 text-sm font-semibold text-white hover:bg-petrol-blue-700 focus:outline-none focus:ring-2 focus:ring-petrol-blue-500 focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-petrol-blue-500/30 transition-all hover:-translate-y-0.5"
+                                className="group relative flex w-full justify-center rounded py-3.5 px-4 text-sm font-bold transition-all hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed"
+                                style={{ 
+                                    background: '#ff2a2a', 
+                                    color: '#0a0a0a', 
+                                    fontFamily: '"Archivo Black", sans-serif',
+                                    letterSpacing: '0.05em',
+                                    boxShadow: '0 4px 20px rgba(255,42,42,0.3)',
+                                }}
                             >
                                 {loading ? (
                                     <>
-                                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" style={{ color: '#0a0a0a' }}>
                                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                         </svg>
-                                        Acessando...
+                                        ACESSANDO...
                                     </>
                                 ) : (
                                     <span className="flex items-center gap-2">
-                                        Entrar
+                                        ENTRAR
                                         <svg className="w-4 h-4 opacity-70 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                                         </svg>
@@ -183,32 +209,39 @@ const Login: React.FC<LoginProps> = ({ onSwitchToRegister }) => {
                         </div>
                     </form>
 
-                    <div className="mt-8 border-t border-slate-200 dark:border-slate-700 pt-6">
-                        <p className="text-xs text-center text-slate-500 dark:text-slate-500">
-                            © 2026 FrotaFácil. Protegido por autenticação segura.
+                    <div className="mt-8 pt-6" style={{ borderTop: '1px solid rgba(245,241,234,0.08)' }}>
+                        <p className="text-center" style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '9px', letterSpacing: '0.2em', color: '#8a8a8a' }}>
+                            © 2026 CARFLIPPING.BR — GESTÃO DE FROTA
                         </p>
                     </div>
                 </div>
             </div>
 
-            {/* Right Side - Image */}
-            <div className="hidden lg:block lg:w-1/2 relative bg-slate-900">
-                <img
-                    className="absolute inset-0 h-full w-full object-cover opacity-90"
-                    src="/login-car.png"
-                    alt="FrotaFácil Car"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent opacity-80" />
+            {/* Right Side - Brand Visual */}
+            <div className="hidden lg:flex lg:w-1/2 relative items-center justify-center overflow-hidden" style={{ background: 'linear-gradient(135deg, #0a0a0a, #1a0a0a)' }}>
+                {/* Red glow */}
+                <div className="absolute right-[-200px] top-[-200px] w-[800px] h-[800px] rounded-full" style={{ background: 'radial-gradient(circle, #ff2a2a 0%, transparent 60%)', opacity: 0.12, filter: 'blur(40px)' }} />
+                
+                {/* Diagonal pattern */}
+                <div className="absolute inset-0" style={{ 
+                    backgroundImage: 'linear-gradient(135deg, transparent 49.5%, rgba(255,42,42,0.06) 49.5%, rgba(255,42,42,0.06) 50%, transparent 50%)',
+                    backgroundSize: '40px 40px'
+                }} />
 
-                <div className="absolute bottom-0 left-0 right-0 p-12 text-white">
-                    <div className="max-w-lg space-y-4">
-                        <h2 className="text-3xl font-bold tracking-tight text-white drop-shadow-md">
-                            Comece a organizar sua frota hoje
-                        </h2>
-                        <p className="text-lg text-slate-200 drop-shadow-sm">
-                            Simplifique a gestão dos seus veículos, motoristas e manutenções em uma plataforma única e intuitiva.
-                        </p>
+                {/* Content */}
+                <div className="relative z-10 max-w-md text-center px-12">
+                    <LogoMonogram size={120} />
+                    <h2 className="mt-8" style={{ fontFamily: '"Archivo Black", sans-serif', fontSize: 'clamp(40px, 5vw, 64px)', lineHeight: '0.9', letterSpacing: '-0.03em', color: '#f5f1ea', textTransform: 'uppercase' }}>
+                        BUY<span style={{ color: '#ff2a2a' }}>.</span><br/>
+                        DRIVE<span style={{ color: '#ff2a2a' }}>.</span><br/>
+                        FLIP<span style={{ color: '#ff2a2a' }}>.</span>
+                    </h2>
+                    <div className="mt-6" style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '11px', letterSpacing: '0.15em', color: '#8a8a8a', lineHeight: '2' }}>
+                        <p>GESTÃO DE FROTA</p>
+                        <p>LOCAÇÃO INTELIGENTE</p>
+                        <p>FLIP AUTOMOTIVO</p>
                     </div>
+                    <div className="mt-8 mx-auto" style={{ width: '40px', height: '3px', background: '#ff2a2a' }} />
                 </div>
             </div>
         </div>

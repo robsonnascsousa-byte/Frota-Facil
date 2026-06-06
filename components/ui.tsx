@@ -12,15 +12,15 @@ interface CardProps {
   colorClass?: string;
 }
 
-export const Card: React.FC<CardProps> = ({ title, value, description, icon, colorClass = 'text-petrol-blue-800' }) => (
-  <div className="bg-white dark:bg-slate-800 p-6 rounded-lg shadow-sm flex items-center space-x-4">
-    <div className={`p-3 rounded-full bg-slate-100 dark:bg-slate-700 ${colorClass}`}>
+export const Card: React.FC<CardProps> = ({ title, value, description, icon, colorClass = 'text-red-line' }) => (
+  <div className="p-6 rounded-lg flex items-center space-x-4 transition-all hover:-translate-y-0.5" style={{ background: '#141414', border: '1px solid rgba(245,241,234,0.06)' }}>
+    <div className={`p-3 rounded-lg ${colorClass}`} style={{ background: 'rgba(255,42,42,0.08)' }}>
       {icon}
     </div>
     <div>
-      <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">{title}</p>
-      <p className="text-2xl font-bold text-slate-800 dark:text-white">{value}</p>
-      {description && <p className="text-xs text-slate-400 dark:text-slate-500">{description}</p>}
+      <p className="text-sm font-medium" style={{ color: '#8a8a8a', fontFamily: '"JetBrains Mono", monospace', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase' as const }}>{title}</p>
+      <p className="text-2xl font-bold" style={{ color: '#f5f1ea', fontFamily: '"Archivo Black", sans-serif' }}>{value}</p>
+      {description && <p className="text-xs" style={{ color: '#8a8a8a' }}>{description}</p>}
     </div>
   </div>
 );
@@ -30,33 +30,33 @@ interface BadgeProps {
   status: StatusVeiculo | StatusContrato | StatusPagamento | StatusMotorista | StatusGenerico | StatusMulta | StatusSinistro | string;
 }
 export const Badge: React.FC<BadgeProps> = ({ status }) => {
-  const baseClasses = "px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-bold text-white rounded-full inline-block uppercase tracking-wider";
+  const baseClasses = "px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-xs font-bold text-white rounded inline-block uppercase tracking-wider";
   const colorClasses: { [key: string]: string } = {
-    'Disponível': 'bg-green-500',
-    'Locado': 'bg-blue-500',
-    'Em manutenção': 'bg-yellow-500',
-    'Vendido': 'bg-slate-500',
-    'Em vigor': 'bg-green-500',
-    'Encerrado': 'bg-slate-500',
-    'Em atraso': 'bg-red-500',
-    'Pago': 'bg-green-500',
-    'Em aberto': 'bg-yellow-500',
-    'Atrasado': 'bg-red-500',
-    'Ativo': 'bg-green-500',
-    'Inadimplente': 'bg-orange-500',
-    'Histórico': 'bg-gray-500',
-    'Inativo': 'bg-slate-500',
-    'Paga': 'bg-green-500',
-    'Em recurso': 'bg-blue-500',
-    'Em análise': 'bg-yellow-500',
-    'Indenizado': 'bg-blue-500',
-    'Concluído': 'bg-green-500',
-    'Válido': 'bg-green-500',
-    'Vencido': 'bg-red-500',
-    'Próximo Vencimento': 'bg-yellow-500',
+    'Disponível': 'bg-green-600',
+    'Locado': 'bg-blue-600',
+    'Em manutenção': 'bg-yellow-600',
+    'Vendido': 'bg-gray-600',
+    'Em vigor': 'bg-green-600',
+    'Encerrado': 'bg-gray-600',
+    'Em atraso': 'bg-red-line',
+    'Pago': 'bg-green-600',
+    'Em aberto': 'bg-yellow-600',
+    'Atrasado': 'bg-red-line',
+    'Ativo': 'bg-green-600',
+    'Inadimplente': 'bg-orange-600',
+    'Histórico': 'bg-gray-600',
+    'Inativo': 'bg-gray-600',
+    'Paga': 'bg-green-600',
+    'Em recurso': 'bg-blue-600',
+    'Em análise': 'bg-yellow-600',
+    'Indenizado': 'bg-blue-600',
+    'Concluído': 'bg-green-600',
+    'Válido': 'bg-green-600',
+    'Vencido': 'bg-red-line',
+    'Próximo Vencimento': 'bg-yellow-600',
   };
 
-  return <span className={`${baseClasses} ${colorClasses[status] || 'bg-gray-500'}`}>{status}</span>;
+  return <span className={`${baseClasses} ${colorClasses[status] || 'bg-gray-600'}`} style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '9px', letterSpacing: '0.12em' }}>{status}</span>;
 };
 
 // --- Header Component ---
@@ -73,13 +73,14 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ title, description, action }) => (
   <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <div>
-      <h1 className="text-2xl sm:text-3xl font-bold text-slate-800 dark:text-white">{title}</h1>
-      <p className="mt-1 text-sm sm:text-base text-slate-500 dark:text-slate-400">{description}</p>
+      <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: '#f5f1ea', fontFamily: '"Archivo Black", sans-serif', letterSpacing: '-0.02em' }}>{title}</h1>
+      <p className="mt-1 text-sm sm:text-base" style={{ color: '#8a8a8a' }}>{description}</p>
     </div>
     {action && (
       <button
         onClick={action.onClick}
-        className="flex items-center justify-center gap-2 px-4 py-2 bg-petrol-blue-600 hover:bg-petrol-blue-700 text-white text-sm font-semibold rounded-lg transition-all shadow-md shadow-petrol-blue-500/20 active:scale-95"
+        className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-bold rounded transition-all active:scale-95 hover:-translate-y-0.5"
+        style={{ background: '#ff2a2a', color: '#0a0a0a', fontFamily: '"JetBrains Mono", monospace', letterSpacing: '0.05em', boxShadow: '0 4px 14px rgba(255,42,42,0.25)' }}
       >
         {action.icon}
         {action.label}

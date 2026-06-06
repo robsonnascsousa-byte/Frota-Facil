@@ -1,0 +1,298 @@
+/* ========================================
+   CARFLIPPING.BR — Design System
+   ======================================== */
+
+:root {
+  --black: #0a0a0a;
+  --ink: #141414;
+  --red: #ff2a2a;
+  --red-deep: #c40000;
+  --bone: #f5f1ea;
+  --bone-dark: #e8e2d8;
+  --grey: #8a8a8a;
+  --grey-dark: #2a2a2a;
+  --grey-light: #3a3a3a;
+}
+
+/* ========== Global Base ========== */
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--black);
+  color: var(--bone);
+  line-height: 1.5;
+}
+
+/* ========== Grain Overlay ========== */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-conic-gradient(
+    rgba(245, 241, 234, 0.02) 0%,
+    transparent 1%,
+    transparent 3%,
+    rgba(245, 241, 234, 0.01) 4%
+  );
+  background-size: 200px 200px;
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: overlay;
+  opacity: 0.6;
+}
+
+/* ========== Font Utility Classes ========== */
+.font-display {
+  font-family: 'Archivo Black', sans-serif;
+  letter-spacing: -0.03em;
+}
+
+.font-heading {
+  font-family: 'Bebas Neue', sans-serif;
+  letter-spacing: 0.03em;
+}
+
+.font-mono-brand {
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: 0.1em;
+}
+
+/* ========== Scrollbar ========== */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--black);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--grey-dark);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--red);
+}
+
+/* ========== Selection ========== */
+::selection {
+  background: var(--red);
+  color: var(--black);
+}
+
+/* ========== Dark Mode Overrides ========== */
+/* Force dark backgrounds for slate-* fallbacks */
+.dark .bg-slate-100,
+.dark .bg-slate-50 {
+  background-color: var(--black) !important;
+}
+
+.dark .bg-white {
+  background-color: var(--ink) !important;
+}
+
+.dark .bg-slate-800 {
+  background-color: var(--ink) !important;
+}
+
+.dark .bg-slate-900 {
+  background-color: var(--black) !important;
+}
+
+.dark .bg-slate-950 {
+  background-color: var(--black) !important;
+}
+
+.dark .bg-slate-700 {
+  background-color: var(--grey-dark) !important;
+}
+
+/* Text overrides */
+.dark .text-white {
+  color: var(--bone) !important;
+}
+
+.dark .text-slate-800,
+.dark .text-slate-900 {
+  color: var(--bone) !important;
+}
+
+.dark .text-slate-400,
+.dark .text-slate-500 {
+  color: var(--grey) !important;
+}
+
+/* Border overrides */
+.dark .border-slate-700,
+.dark .border-slate-600,
+.dark .border-slate-800 {
+  border-color: rgba(245, 241, 234, 0.08) !important;
+}
+
+/* ========== Input & Form Overrides ========== */
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: var(--grey-dark) !important;
+  border-color: rgba(245, 241, 234, 0.12) !important;
+  color: var(--bone) !important;
+}
+
+.dark input:focus,
+.dark select:focus,
+.dark textarea:focus {
+  border-color: var(--red) !important;
+  box-shadow: 0 0 0 2px rgba(255, 42, 42, 0.15) !important;
+  outline: none !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: var(--grey) !important;
+}
+
+/* ========== Button Primary Override ========== */
+.dark .bg-petrol-blue-600,
+.dark .bg-petrol-blue-700 {
+  background-color: var(--red) !important;
+  box-shadow: 0 4px 14px rgba(255, 42, 42, 0.3) !important;
+}
+
+.dark .bg-petrol-blue-600:hover,
+.dark .bg-petrol-blue-700:hover {
+  background-color: var(--red-deep) !important;
+}
+
+.dark .shadow-petrol-blue-500\/20,
+.dark .shadow-petrol-blue-500\/30 {
+  --tw-shadow-color: rgba(255, 42, 42, 0.2) !important;
+}
+
+/* ========== Focus Ring Override ========== */
+.dark .focus\:ring-petrol-blue-500:focus {
+  --tw-ring-color: var(--red) !important;
+}
+
+.dark .focus\:border-petrol-blue-500:focus {
+  border-color: var(--red) !important;
+}
+
+/* ========== Table Overrides ========== */
+.dark table thead {
+  background-color: var(--black) !important;
+}
+
+.dark table thead th {
+  color: var(--grey) !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 0.65rem !important;
+  letter-spacing: 0.15em !important;
+  text-transform: uppercase !important;
+}
+
+.dark table tbody tr {
+  border-color: rgba(245, 241, 234, 0.05) !important;
+}
+
+.dark table tbody tr:hover {
+  background-color: rgba(255, 42, 42, 0.04) !important;
+}
+
+/* ========== Badge / Tag Overrides ========== */
+.dark .rounded-full.uppercase {
+  border-radius: 4px !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 0.6rem !important;
+  letter-spacing: 0.12em !important;
+}
+
+/* ========== Card Overrides ========== */
+.dark .shadow-sm {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(245, 241, 234, 0.04) !important;
+}
+
+/* ========== Modal Overrides ========== */
+.dark .bg-black.bg-opacity-60 {
+  background-color: rgba(0, 0, 0, 0.8) !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+/* ========== Toast Override ========== */
+.dark .fixed.bottom-5.right-5 {
+  background-color: var(--red) !important;
+  color: var(--black) !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-weight: 700 !important;
+}
+
+/* ========== Recharts / Chart Overrides ========== */
+.recharts-cartesian-grid line {
+  stroke: rgba(245, 241, 234, 0.06) !important;
+}
+
+.recharts-text {
+  fill: var(--grey) !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10px !important;
+}
+
+/* ========== Animations ========== */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* ========== Prevent user select on nav ========== */
+.user-select-none {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.user-select-text {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* ========== Red accent line utility ========== */
+.accent-line::after {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 3px;
+  background: var(--red);
+  margin-top: 8px;
+}
+
+/* ========== Responsive adjustments ========== */
+@media (max-width: 640px) {
+  body::before {
+    opacity: 0.08;
+  }
+}

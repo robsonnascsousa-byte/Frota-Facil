@@ -1,33 +1,72 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Sistema de Gestão de Frota</title>
+    <title>CARFLIPPING.BR — Gestão de Frota</title>
+    <meta name="description" content="Sistema de gestão de frota CARFLIPPING.BR. Locação inteligente e flip automotivo." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Archivo+Black&family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         darkMode: 'class',
         theme: {
           extend: {
+            fontFamily: {
+              'display': ['"Archivo Black"', 'sans-serif'],
+              'heading': ['"Bebas Neue"', 'sans-serif'],
+              'mono': ['"JetBrains Mono"', 'monospace'],
+              'body': ['"Inter"', 'sans-serif'],
+            },
             colors: {
+              'carbon': {
+                DEFAULT: '#0a0a0a',
+                'light': '#141414',
+              },
+              'red-line': {
+                DEFAULT: '#ff2a2a',
+                'deep': '#c40000',
+                '50': '#fff1f1',
+                '100': '#ffe0e0',
+                '200': '#ffc7c7',
+                '300': '#ffa0a0',
+                '400': '#ff6b6b',
+                '500': '#ff2a2a',
+                '600': '#ed1515',
+                '700': '#c40000',
+                '800': '#a30d0d',
+                '900': '#871212',
+                '950': '#4a0404',
+              },
+              'bone': {
+                DEFAULT: '#f5f1ea',
+                'dark': '#e8e2d8',
+              },
+              'gunmetal': {
+                DEFAULT: '#2a2a2a',
+                'light': '#3a3a3a',
+              },
+              // Map petrol-blue to red-line for backward compatibility
               'petrol-blue': {
-                '50': '#f0f9ff',
-                '100': '#e0f2fe',
-                '200': '#bae6fd',
-                '300': '#7dd3fc',
-                '400': '#38bdf8',
-                '500': '#0ea5e9',
-                '600': '#0284c7',
-                '700': '#0369a1',
-                '800': '#075985',
-                '900': '#0c4a6e',
-                '950': '#082f49',
+                '50': '#fff1f1',
+                '100': '#ffe0e0',
+                '200': '#ffc7c7',
+                '300': '#ffa0a0',
+                '400': '#ff6b6b',
+                '500': '#ff2a2a',
+                '600': '#ed1515',
+                '700': '#c40000',
+                '800': '#a30d0d',
+                '900': '#871212',
+                '950': '#4a0404',
               },
             },
             animation: {
               'fade-in-up': 'fadeInUp 0.5s ease-out forwards',
               'slide-in': 'slideIn 0.3s ease-out forwards',
+              'pulse-red': 'pulseRed 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
             },
             keyframes: {
               fadeInUp: {
@@ -37,6 +76,10 @@
               slideIn: {
                 '0%': { opacity: '0', transform: 'translateX(-100%)' },
                 '100%': { opacity: '1', transform: 'translateX(0)' },
+              },
+              pulseRed: {
+                '0%, 100%': { opacity: '1' },
+                '50%': { opacity: '0.7' },
               },
             },
           }
@@ -55,7 +98,7 @@
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-  <body class="bg-slate-50">
+  <body class="bg-carbon font-body text-bone">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
