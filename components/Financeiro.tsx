@@ -131,20 +131,25 @@ const Financeiro: React.FC<FinanceiroProps> = ({
 
     const { receitaTotalMes, custosTotaisMes, lucroBrutoMes } = useMemo(() => {
         const currentDate = new Date();
-        const currentMonth = currentDate.getMonth();
+        const currentMonth = currentDate.getMonth() + 1; // 1-12
         const currentYear = currentDate.getFullYear();
 
         const receita = contasAReceber
             .filter(c => {
-                const pagamentoDate = new Date(c.vencimento);
-                return c.status === 'Pago' && pagamentoDate.getMonth() === currentMonth && pagamentoDate.getFullYear() === currentYear;
+                // Parse year/month directly from the YYYY-MM-DD string to avoid timezone issues
+                const parts = c.vencimento.split('-');
+                const year = parseInt(parts[0]);
+                const month = parseInt(parts[1]); // 1-12
+                return c.status === 'Pago' && month === currentMonth && year === currentYear;
             })
             .reduce((sum, c) => sum + c.valor, 0);
 
         const custos = contasAPagar
             .filter(d => {
-                const despesaDate = new Date(d.data);
-                return d.status === 'Paga' && despesaDate.getMonth() === currentMonth && despesaDate.getFullYear() === currentYear;
+                const parts = d.data.split('-');
+                const year = parseInt(parts[0]);
+                const month = parseInt(parts[1]); // 1-12
+                return d.status === 'Paga' && month === currentMonth && year === currentYear;
             })
             .reduce((sum, d) => sum + d.valor, 0);
 

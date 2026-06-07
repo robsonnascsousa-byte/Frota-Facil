@@ -131,35 +131,43 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
         const currentYear = new Date().getFullYear();
         const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
-        for (let month = 0; month < 12; month++) {
+        for (let month = 1; month <= 12; month++) {
             // --- Receitas ---
             // Realizada: pagamentos de contratos com status 'Pago' + receitas manuais com status 'Pago'
             const receitaContratosRealizada = contratos.flatMap(c => c.pagamentos || [])
                 .filter(p => {
-                    const pDate = new Date(p.vencimento);
-                    return p.status === 'Pago' && pDate.getMonth() === month && pDate.getFullYear() === currentYear;
+                    const parts = p.vencimento.split('-');
+                    const pYear = parseInt(parts[0]);
+                    const pMonth = parseInt(parts[1]);
+                    return p.status === 'Pago' && pMonth === month && pYear === currentYear;
                 })
                 .reduce((sum, p) => sum + p.valor, 0);
 
             const receitaManualRealizada = receitas
                 .filter(r => {
-                    const rDate = new Date(r.data);
-                    return r.status === 'Pago' && rDate.getMonth() === month && rDate.getFullYear() === currentYear;
+                    const parts = r.data.split('-');
+                    const rYear = parseInt(parts[0]);
+                    const rMonth = parseInt(parts[1]);
+                    return r.status === 'Pago' && rMonth === month && rYear === currentYear;
                 })
                 .reduce((sum, r) => sum + r.valor, 0);
 
             // Prevista: pagamentos de contratos com status 'Em aberto' ou 'Atrasado' + receitas manuais com status 'Em aberto' ou 'Atrasado'
             const receitaContratosPrevista = contratos.flatMap(c => c.pagamentos || [])
                 .filter(p => {
-                    const pDate = new Date(p.vencimento);
-                    return (p.status === 'Em aberto' || p.status === 'Atrasado') && pDate.getMonth() === month && pDate.getFullYear() === currentYear;
+                    const parts = p.vencimento.split('-');
+                    const pYear = parseInt(parts[0]);
+                    const pMonth = parseInt(parts[1]);
+                    return (p.status === 'Em aberto' || p.status === 'Atrasado') && pMonth === month && pYear === currentYear;
                 })
                 .reduce((sum, p) => sum + p.valor, 0);
 
             const receitaManualPrevista = receitas
                 .filter(r => {
-                    const rDate = new Date(r.data);
-                    return (r.status === 'Em aberto' || r.status === 'Atrasado') && rDate.getMonth() === month && rDate.getFullYear() === currentYear;
+                    const parts = r.data.split('-');
+                    const rYear = parseInt(parts[0]);
+                    const rMonth = parseInt(parts[1]);
+                    return (r.status === 'Em aberto' || r.status === 'Atrasado') && rMonth === month && rYear === currentYear;
                 })
                 .reduce((sum, r) => sum + r.valor, 0);
 
@@ -167,21 +175,25 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
             // Realizada: despesas + manutenções com status 'Paga'
             const despesaRealizada = [...despesas, ...manutencoes]
                 .filter(d => {
-                    const dDate = new Date(d.data);
-                    return d.status === 'Paga' && dDate.getMonth() === month && dDate.getFullYear() === currentYear;
+                    const parts = d.data.split('-');
+                    const dYear = parseInt(parts[0]);
+                    const dMonth = parseInt(parts[1]);
+                    return d.status === 'Paga' && dMonth === month && dYear === currentYear;
                 })
                 .reduce((sum, d) => sum + d.valor, 0);
 
             // Prevista: despesas + manutenções com status 'Em aberto'
             const despesaPrevista = [...despesas, ...manutencoes]
                 .filter(d => {
-                    const dDate = new Date(d.data);
-                    return d.status === 'Em aberto' && dDate.getMonth() === month && dDate.getFullYear() === currentYear;
+                    const parts = d.data.split('-');
+                    const dYear = parseInt(parts[0]);
+                    const dMonth = parseInt(parts[1]);
+                    return d.status === 'Em aberto' && dMonth === month && dYear === currentYear;
                 })
                 .reduce((sum, d) => sum + d.valor, 0);
 
             data.push({
-                name: MONTH_NAMES[month],
+                name: MONTH_NAMES[month - 1],
                 ReceitaRealizada: receitaContratosRealizada + receitaManualRealizada,
                 ReceitaPrevista: receitaContratosPrevista + receitaManualPrevista,
                 DespesaRealizada: despesaRealizada,

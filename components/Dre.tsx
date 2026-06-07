@@ -23,10 +23,10 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
         const yearsSet = new Set<number>();
         yearsSet.add(new Date().getFullYear());
 
-        contratos.forEach(c => (c.pagamentos || []).forEach(p => yearsSet.add(new Date(p.vencimento).getFullYear())));
-        despesas.forEach(d => yearsSet.add(new Date(d.data).getFullYear()));
-        manutencoes.forEach(m => yearsSet.add(new Date(m.data).getFullYear()));
-        multas.forEach(m => yearsSet.add(new Date(m.data).getFullYear()));
+        contratos.forEach(c => (c.pagamentos || []).forEach(p => yearsSet.add(parseInt(p.vencimento.split('-')[0]))));
+        despesas.forEach(d => yearsSet.add(parseInt(d.data.split('-')[0])));
+        manutencoes.forEach(m => yearsSet.add(parseInt(m.data.split('-')[0])));
+        multas.forEach(m => yearsSet.add(parseInt(m.data.split('-')[0])));
 
         return Array.from(yearsSet).sort((a, b) => b - a);
     }, [contratos, despesas, manutencoes, multas]);
@@ -36,9 +36,11 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
     // Helper to calculate DRE for a specific period
     const calculateDRE = (year: number, month: number | 'all') => {
         const isPeriodMatch = (dateStr: string) => {
-            const date = new Date(dateStr);
-            const yearMatch = date.getFullYear() === year;
-            const monthMatch = month === 'all' || (date.getMonth() + 1) === month;
+            const parts = dateStr.split('-');
+            const dateYear = parseInt(parts[0]);
+            const dateMonth = parseInt(parts[1]); // 1-12
+            const yearMatch = dateYear === year;
+            const monthMatch = month === 'all' || dateMonth === month;
             return yearMatch && monthMatch;
         };
 
