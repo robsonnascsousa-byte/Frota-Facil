@@ -21,11 +21,27 @@ const LogoMonogram: React.FC<{ size?: number }> = ({ size = 48 }) => (
 );
 
 const Login: React.FC<LoginProps> = ({ onSwitchToRegister }) => {
-    const { signIn, isConfigured } = useAuth();
+    const { signIn, resetPassword, isConfigured } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [resetMessage, setResetMessage] = useState<string | null>(null);
+
+    const handleForgotPassword = async () => {
+        setError(null);
+        setResetMessage(null);
+        if (!email) {
+            setError('Digite seu e-mail no campo acima para redefinir a senha');
+            return;
+        }
+        const { error } = await resetPassword(email);
+        if (error) {
+            setError(error.message);
+        } else {
+            setResetMessage(`E-mail de redefinição enviado para ${email}. Verifique sua caixa de entrada.`);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -102,6 +118,13 @@ const Login: React.FC<LoginProps> = ({ onSwitchToRegister }) => {
                         </div>
                     )}
 
+                    {/* Reset password feedback */}
+                    {resetMessage && (
+                        <div className="p-4 rounded" style={{ background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.3)' }}>
+                            <span className="text-sm font-medium" style={{ color: '#4ade80' }}>{resetMessage}</span>
+                        </div>
+                    )}
+
                     {/* Form */}
                     <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
                         <div className="space-y-4">
@@ -156,9 +179,9 @@ const Login: React.FC<LoginProps> = ({ onSwitchToRegister }) => {
                             </div>
 
                             <div className="text-sm">
-                                <a href="#" style={{ color: '#ff2a2a', fontFamily: '"JetBrains Mono", monospace', fontSize: '11px' }} className="hover:opacity-80 transition-opacity">
+                                <button type="button" onClick={handleForgotPassword} style={{ color: '#ff2a2a', fontFamily: '"JetBrains Mono", monospace', fontSize: '11px' }} className="hover:opacity-80 transition-opacity">
                                     Esqueceu a senha?
-                                </a>
+                                </button>
                             </div>
                         </div>
 

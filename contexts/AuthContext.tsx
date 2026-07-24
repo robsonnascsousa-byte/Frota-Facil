@@ -7,9 +7,13 @@ interface AuthContextType {
     session: Session | null;
     role: string | null;
     loading: boolean;
+    passwordRecovery: boolean;
     signUp: (email: string, password: string, nome?: string) => Promise<{ error: AuthError | null }>;
     signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
     signOut: () => Promise<void>;
+    resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
+    updatePassword: (password: string) => Promise<{ error: AuthError | null }>;
+    clearPasswordRecovery: () => void;
     isConfigured: boolean;
 }
 
@@ -32,6 +36,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
     const [role, setRole] = useState<string | null>(null);
+    const [passwordRecovery, setPasswordRecovery] = useState(false);
     const isConfigured = isSupabaseConfigured();
 
     useEffect(() => {
@@ -99,6 +104,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             async (_event, newSession) => {
                 console.log('[AuthContext] onAuthStateChange event:', _event);
+                if (_event === 'PASSWORD_RECOVERY') {
+                    setPasswordRecovery(true);
+                }
                 await handleSession(newSession);
             }
         );
@@ -162,14 +170,32 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('[AuthContext] User state cleared');
     };
 
+    const resetPassword = async (email: string) => {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin
+        });
+        return { error };
+    };
+
+    const updatePassword = async (password: string) => {
+        const { error } = await supabase.auth.updateUser({ password });
+        return { error };
+    };
+
+    const clearPasswordRecovery = () => setPasswordRecovery(false);
+
     const value = {
         user,
         session,
         role,
         loading,
+        passwordRecovery,
         signUp,
         signIn,
         signOut,
+        resetPassword,
+        updatePassword,
+        clearPasswordRecovery,
         isConfigured
     };
 

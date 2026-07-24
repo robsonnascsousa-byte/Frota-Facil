@@ -13,6 +13,7 @@ import CommandPalette from './components/CommandPalette';
 import Configuracoes from './components/Configuracoes';
 import Login from './components/Login';
 import Register from './components/Register';
+import ResetPassword from './components/ResetPassword';
 import ControleAcessos from './components/ControleAcessos';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useDarkMode } from './hooks/useDarkMode';
@@ -950,8 +951,12 @@ const InnerApp: React.FC = () => {
 };
 
 const App: React.FC = () => {
-  const { user, loading, isConfigured } = useAuth();
+  const { user, loading, isConfigured, passwordRecovery } = useAuth();
   const [showRegister, setShowRegister] = useState(false);
+
+  if (isConfigured && (passwordRecovery || (user && window.location.hash === '#trocar-senha'))) {
+    return <ResetPassword />;
+  }
 
   if (loading) {
     return (

@@ -450,20 +450,20 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                         <BarChart data={dataGraficoReceitaDespesa} barGap={2} barCategoryGap="12%">
                             <defs>
                                 <linearGradient id="receitaRealizadaGrad" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#22c55e" stopOpacity={1} />
-                                    <stop offset="100%" stopColor="#16a34a" stopOpacity={0.8} />
+                                    <stop offset="0%" stopColor="#f5f1ea" stopOpacity={1} />
+                                    <stop offset="100%" stopColor="#e8e2d8" stopOpacity={0.8} />
                                 </linearGradient>
                                 <linearGradient id="receitaPrevistaGrad" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#86efac" stopOpacity={0.7} />
-                                    <stop offset="100%" stopColor="#4ade80" stopOpacity={0.4} />
+                                    <stop offset="0%" stopColor="#f5f1ea" stopOpacity={0.5} />
+                                    <stop offset="100%" stopColor="#f5f1ea" stopOpacity={0.25} />
                                 </linearGradient>
                                 <linearGradient id="despesaRealizadaGrad" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#f97316" stopOpacity={1} />
-                                    <stop offset="100%" stopColor="#ea580c" stopOpacity={0.8} />
+                                    <stop offset="0%" stopColor="#ff2a2a" stopOpacity={1} />
+                                    <stop offset="100%" stopColor="#c40000" stopOpacity={0.8} />
                                 </linearGradient>
                                 <linearGradient id="despesaPrevistaGrad" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#fdba74" stopOpacity={0.7} />
-                                    <stop offset="100%" stopColor="#fb923c" stopOpacity={0.4} />
+                                    <stop offset="0%" stopColor="#ff2a2a" stopOpacity={0.45} />
+                                    <stop offset="100%" stopColor="#ff2a2a" stopOpacity={0.2} />
                                 </linearGradient>
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} opacity={0.4} />
@@ -485,13 +485,13 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                                 <Bar dataKey="ReceitaRealizada" name="Receita Realizada" fill="url(#receitaRealizadaGrad)" radius={[4, 4, 0, 0]} />
                             )}
                             {(chartViewMode === 'previsto' || chartViewMode === 'ambos') && (
-                                <Bar dataKey="ReceitaPrevista" name="Receita Prevista" fill="url(#receitaPrevistaGrad)" radius={[4, 4, 0, 0]} strokeDasharray="4 2" stroke="#22c55e" strokeWidth={1} />
+                                <Bar dataKey="ReceitaPrevista" name="Receita Prevista" fill="url(#receitaPrevistaGrad)" radius={[4, 4, 0, 0]} strokeDasharray="4 2" stroke="#f5f1ea" strokeWidth={1} />
                             )}
                             {(chartViewMode === 'realizado' || chartViewMode === 'ambos') && (
                                 <Bar dataKey="DespesaRealizada" name="Despesa Realizada" fill="url(#despesaRealizadaGrad)" radius={[4, 4, 0, 0]} />
                             )}
                             {(chartViewMode === 'previsto' || chartViewMode === 'ambos') && (
-                                <Bar dataKey="DespesaPrevista" name="Despesa Prevista" fill="url(#despesaPrevistaGrad)" radius={[4, 4, 0, 0]} strokeDasharray="4 2" stroke="#f97316" strokeWidth={1} />
+                                <Bar dataKey="DespesaPrevista" name="Despesa Prevista" fill="url(#despesaPrevistaGrad)" radius={[4, 4, 0, 0]} strokeDasharray="4 2" stroke="#ff2a2a" strokeWidth={1} />
                             )}
                         </BarChart>
                     </ResponsiveContainer>
@@ -517,8 +517,8 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                         <AreaChart data={dataGraficoOcupacao}>
                             <defs>
                                 <linearGradient id="ocupacaoGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3} />
-                                    <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
+                                    <stop offset="5%" stopColor="#ff2a2a" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#ff2a2a" stopOpacity={0} />
                                 </linearGradient>
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} opacity={0.4} />
@@ -539,11 +539,11 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                             <Area
                                 type="monotone"
                                 dataKey="Ocupação"
-                                stroke="#0ea5e9"
+                                stroke="#ff2a2a"
                                 strokeWidth={3}
                                 fill="url(#ocupacaoGradient)"
-                                dot={{ fill: '#0ea5e9', strokeWidth: 2, r: 4, stroke: '#fff' }}
-                                activeDot={{ r: 6, stroke: '#0ea5e9', strokeWidth: 2, fill: '#fff' }}
+                                dot={{ fill: '#ff2a2a', strokeWidth: 2, r: 4, stroke: '#f5f1ea' }}
+                                activeDot={{ r: 6, stroke: '#ff2a2a', strokeWidth: 2, fill: '#f5f1ea' }}
                             />
                         </AreaChart>
                     </ResponsiveContainer>
@@ -612,7 +612,7 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                         {veiculosRentaveis.map((v, i) => {
                             const maxLucro = Math.max(...veiculosRentaveis.map(x => x.lucro));
                             const percentage = maxLucro > 0 ? (v.lucro / maxLucro) * 100 : 0;
-                            const colors = ['bg-green-500', 'bg-emerald-500', 'bg-teal-500', 'bg-cyan-500', 'bg-sky-500'];
+                            const colors = ['bg-[#ff2a2a]', 'bg-[#c40000]', 'bg-[#f5f1ea]', 'bg-[#8a8a8a]', 'bg-[#2a2a2a]'];
                             return (
                                 <div key={i} className="relative">
                                     <div className="flex items-center justify-between mb-1">

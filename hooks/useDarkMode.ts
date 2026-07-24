@@ -8,7 +8,7 @@ type Theme = 'light' | 'dark';
  */
 export function useDarkMode(): [Theme, () => void] {
     const getInitialTheme = useCallback((): Theme => {
-        if (typeof window === 'undefined') return 'light';
+        if (typeof window === 'undefined') return 'dark';
 
         // Primeiro verifica localStorage
         const stored = localStorage.getItem('theme');
@@ -16,12 +16,8 @@ export function useDarkMode(): [Theme, () => void] {
             return stored;
         }
 
-        // Depois verifica preferência do sistema
-        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            return 'dark';
-        }
-
-        return 'light';
+        // Identidade CARFLIPPING.BR é dark-first (manual da marca: 70% preto)
+        return 'dark';
     }, []);
 
     const [theme, setTheme] = useState<Theme>(getInitialTheme);

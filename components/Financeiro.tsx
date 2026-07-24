@@ -301,7 +301,7 @@ const Financeiro: React.FC<FinanceiroProps> = ({
                                         setFormData({ ...initialFormState, transacaoTipo: 'receita' });
                                         setIsAddModalOpen(true);
                                     }}
-                                    className="inline-flex items-center justify-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-emerald-700"
+                                    className="inline-flex items-center justify-center rounded-md bg-[#ff2a2a] px-4 py-2 text-sm font-bold text-black shadow-sm hover:bg-[#c40000]"
                                 >
                                     Adicionar Receita
                                 </button>
@@ -514,7 +514,7 @@ const Financeiro: React.FC<FinanceiroProps> = ({
                     )}
                     <div className="pt-5 border-t mt-4 flex justify-end space-x-3">
                         <button type="button" onClick={() => setIsAddModalOpen(false)} className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">Cancelar</button>
-                        <button type="submit" className={`py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${formData.transacaoTipo === 'despesa' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
+                        <button type="submit" className="py-2 px-4 border border-transparent shadow-sm text-sm font-bold rounded-md text-black bg-[#ff2a2a] hover:bg-[#c40000]">
                             Salvar {formData.transacaoTipo === 'despesa' ? 'Pagamento' : 'Recebimento'}
                         </button>
                     </div>
@@ -543,7 +543,7 @@ const Financeiro: React.FC<FinanceiroProps> = ({
 
                     <div className="flex justify-end space-x-3 pt-4 border-t">
                         <button type="button" onClick={() => setItemToEdit(null)} className="px-5 py-2 border border-slate-200 dark:border-slate-700 rounded-md text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Cancelar</button>
-                        <button type="submit" className="px-5 py-2 rounded-md font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-sm transition-all">Salvar Alteração</button>
+                        <button type="submit" className="px-5 py-2 rounded-md font-bold text-black bg-[#ff2a2a] hover:bg-[#c40000] shadow-sm transition-all">Salvar Alteração</button>
                     </div>
                 </form>
             </Modal>
