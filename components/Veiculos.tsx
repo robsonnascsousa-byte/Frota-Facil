@@ -267,17 +267,20 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
             const receitaTotal = receitaContratos;
 
             // Costs
+            // O campo é veiculo_placa (snake_case, como vem do banco). Escrito
+            // veiculoPlaca, o filtro comparava undefined e nunca casava — toda
+            // manutenção e multa ficava fora do custo, inflando a rentabilidade.
             const custoManutencao = manutencoes
-                .filter(m => m.veiculoPlaca === v.placa)
+                .filter(m => m.veiculo_placa === v.placa)
                 .reduce((sum, m) => sum + (m.valor || 0), 0);
 
             const custoMultas = multas
-                .filter(m => m.veiculoPlaca === v.placa)
+                .filter(m => m.veiculo_placa === v.placa)
                 .reduce((sum, m) => sum + (m.valor || 0), 0);
 
             const custoSinistros = (sinistros || [])
-                .filter(s => s.veiculoPlaca === v.placa)
-                .reduce((sum, s) => sum + 0, 0);
+                .filter(s => s.veiculo_placa === v.placa)
+                .reduce((sum, s) => sum + (s.valor || 0), 0);
 
             const custoOutros = despesas
                 .filter(d => d.veiculo_placa === v.placa)
@@ -599,7 +602,7 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
                     ]}
                     statusFilter={{
                         field: 'status',
-                        options: ['Disponível', 'Locado', 'Em manutenção', 'Vendido'] as StatusVeiculo[]
+                        options: ['Disponível', 'Locado', 'Em manutenção', 'Vendido', 'Inativo'] as StatusVeiculo[]
                     }}
                 />
             ) : (

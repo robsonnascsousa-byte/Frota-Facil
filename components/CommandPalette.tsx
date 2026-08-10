@@ -3,10 +3,11 @@ import { Page, Veiculo, Motorista, Contrato } from '../types';
 
 interface CommandPaletteProps {
     isOpen: boolean;
-    onClose: () => void;
-    veiculos: Veiculo[];
-    motoristas: Motorista[];
-    contratos: Contrato[];
+    onClose?: () => void;
+    setIsOpen?: (open: boolean) => void;
+    veiculos?: Veiculo[];
+    motoristas?: Motorista[];
+    contratos?: Contrato[];
     onNavigate: (page: Page) => void;
 }
 
@@ -61,11 +62,13 @@ const PageIcon = () => (
 const CommandPalette: React.FC<CommandPaletteProps> = ({
     isOpen,
     onClose,
-    veiculos,
-    motoristas,
-    contratos,
+    setIsOpen,
+    veiculos = [],
+    motoristas = [],
+    contratos = [],
     onNavigate,
 }) => {
+    const fechar = onClose ?? (() => setIsOpen?.(false));
     const [query, setQuery] = useState('');
     const [selectedIndex, setSelectedIndex] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -129,16 +132,16 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
         // Buscar em contratos
         contratos
             .filter(c =>
-                c.motoristaNome.toLowerCase().includes(q) ||
-                c.veiculoPlaca.toLowerCase().includes(q)
+                c.motorista_nome.toLowerCase().includes(q) ||
+                c.veiculo_placa.toLowerCase().includes(q)
             )
             .slice(0, 5)
             .forEach(c => {
                 items.push({
                     id: `contrato-${c.id}`,
                     type: 'contrato',
-                    title: `Contrato: ${c.motoristaNome}`,
-                    subtitle: `${c.veiculoPlaca} - ${c.planoNome}`,
+                    title: `Contrato: ${c.motorista_nome}`,
+                    subtitle: `${c.veiculo_placa} - ${c.plano_nome}`,
                     page: 'contratos',
                     icon: <ContratoIcon />,
                 });
@@ -199,12 +202,12 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                 e.preventDefault();
                 if (results[selectedIndex]) {
                     onNavigate(results[selectedIndex].page);
-                    onClose();
+                    fechar();
                 }
                 break;
             case 'Escape':
                 e.preventDefault();
-                onClose();
+                fechar();
                 break;
         }
     }, [results, selectedIndex, onNavigate, onClose]);
@@ -303,7 +306,7 @@ const CommandPalette: React.FC<CommandPaletteProps> = ({
                                             }`}
                                         onClick={() => {
                                             onNavigate(result.page);
-                                            onClose();
+                                            fechar();
                                         }}
                                         onMouseEnter={() => setSelectedIndex(index)}
                                     >

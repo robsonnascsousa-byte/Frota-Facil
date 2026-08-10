@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Veiculo, Contrato } from '../types';
+import { Veiculo, Contrato, estaNaOperacao } from '../types';
 import { formatCurrency } from '../utils/formatters';
 
 interface FleetStripProps {
@@ -56,7 +56,7 @@ const FleetStrip: React.FC<FleetStripProps> = ({ veiculos, contratos }) => {
             return d >= inicio && d <= fim;
         };
 
-        const ativos = veiculos.filter(v => v.status !== 'Vendido');
+        const ativos = veiculos.filter(v => estaNaOperacao(v.status));
 
         const slots: Slot[] = ativos.map(v => {
             const contrato = contratos.find(c => c.veiculo_placa === v.placa && c.status === 'Em vigor');

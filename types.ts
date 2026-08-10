@@ -1,6 +1,12 @@
 export type Page = 'dashboard' | 'veiculos' | 'motoristas' | 'planos' | 'contratos' | 'manutencoes' | 'multas' | 'financeiro' | 'dre' | 'documentos' | 'configuracoes' | 'acessos';
 
-export type StatusVeiculo = "Disponível" | "Locado" | "Em manutenção" | "Vendido";
+export type StatusVeiculo = "Disponível" | "Locado" | "Em manutenção" | "Vendido" | "Inativo";
+
+/** Veículos que saíram da operação: não contam na taxa de ocupação nem na régua
+ *  da frota, porque não estão disponíveis para gerar receita. */
+export const STATUS_FORA_DA_OPERACAO: StatusVeiculo[] = ["Vendido", "Inativo"];
+export const estaNaOperacao = (status: StatusVeiculo | string): boolean =>
+    !STATUS_FORA_DA_OPERACAO.includes(status as StatusVeiculo);
 export type StatusContrato = "Em vigor" | "Encerrado" | "Em atraso";
 export type StatusPagamento = "Pago" | "Em aberto" | "Atrasado";
 export type StatusMotorista = "Ativo" | "Inadimplente" | "Histórico";

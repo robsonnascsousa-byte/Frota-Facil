@@ -832,6 +832,9 @@ const InnerApp: React.FC = () => {
         <CommandPalette
           isOpen={commandPaletteOpen}
           setIsOpen={setCommandPaletteOpen}
+          veiculos={veiculos}
+          motoristas={motoristas}
+          contratos={contratos}
           pages={[
             { id: 'dashboard', title: 'Dashboard', icon: 'ChartBarIcon' },
             { id: 'veiculos', title: 'Veículos', icon: 'TruckIcon' },

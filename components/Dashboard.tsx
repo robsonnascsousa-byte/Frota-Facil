@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, Area, AreaChart, PieChart, Pie, Cell, FunnelChart, Funnel, LabelList } from 'recharts';
-import { Veiculo, Contrato, Documento, Despesa, Manutencao, Receita, Multa } from '../types';
+import { Veiculo, Contrato, Documento, Despesa, Manutencao, Receita, Multa, estaNaOperacao } from '../types';
 import { Card, Header } from './ui';
 import FleetStrip from './FleetStrip';
 import { formatCurrency, formatDate } from '../utils/formatters';
@@ -81,8 +81,11 @@ const CustomLegend = ({ payload }: any) => {
 const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, despesas, manutencoes, receitas, multas }) => {
     const [funnelVeiculoFilter, setFunnelVeiculoFilter] = useState<string>('todos');
     const [chartViewMode, setChartViewMode] = useState<'realizado' | 'previsto' | 'ambos'>('ambos');
-    const totalVeiculos = veiculos.length;
-    const locados = veiculos.filter(v => v.status === 'Locado').length;
+    // Vendidos e inativos saíram da operação: mantê-los no denominador diluía a
+    // ocupação com carros que nem podem ser alugados.
+    const veiculosOperacionais = veiculos.filter(v => estaNaOperacao(v.status));
+    const totalVeiculos = veiculosOperacionais.length;
+    const locados = veiculosOperacionais.filter(v => v.status === 'Locado').length;
     const taxaOcupacao = totalVeiculos > 0 ? (locados / totalVeiculos * 100).toFixed(1) : 0;
 
     const receitaMes = contratos.flatMap(c => c.pagamentos || [])
@@ -267,17 +270,16 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
         return parseFloat((currentMonth - previousMonth).toFixed(1));
     }, [dataGraficoOcupacao]);
 
-    // Data for vehicle status pie chart
+    // Distribuição da frota operacional — mesma base da taxa de ocupação,
+    // para que o gráfico e o indicador nunca contem coisas diferentes.
     const statusVeiculos = useMemo(() => {
-        const disponivel = veiculos.filter(v => v.status === 'Disponível').length;
-        const locado = veiculos.filter(v => v.status === 'Locado').length;
-        const manutencao = veiculos.filter(v => v.status === 'Em manutenção').length;
+        const conta = (s: string) => veiculosOperacionais.filter(v => v.status === s).length;
         return [
-            { name: 'Locados', value: locado, color: '#f5f1ea' },
-            { name: 'Disponíveis', value: disponivel, color: '#8a8a8a' },
-            { name: 'Em Manutenção', value: manutencao, color: '#ff2a2a' },
+            { name: 'Locados', value: conta('Locado'), color: '#f5f1ea' },
+            { name: 'Disponíveis', value: conta('Disponível'), color: '#8a8a8a' },
+            { name: 'Em Manutenção', value: conta('Em manutenção'), color: '#ff2a2a' },
         ].filter(item => item.value > 0);
-    }, [veiculos]);
+    }, [veiculosOperacionais]);
 
     const documentosVencendo = documentos.filter(d => d.status === 'Próximo Vencimento' || d.status === 'Vencido');
 
