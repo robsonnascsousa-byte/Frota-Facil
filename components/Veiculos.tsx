@@ -739,6 +739,7 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
                                     <option value="Locado">Locado</option>
                                     <option value="Em manutenção">Em manutenção</option>
                                     <option value="Vendido">Vendido</option>
+                                    <option value="Inativo">Inativo</option>
                                 </select>
                             </div>
 
