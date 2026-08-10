@@ -9,21 +9,30 @@ interface CardProps {
   value: string | number;
   description?: string;
   icon: React.ReactNode;
-  colorClass?: string;
+  /** 'alert' pinta o ícone de vermelho. Reserve para o que pede ação — o vermelho
+   *  só significa alguma coisa enquanto for raro (manual da marca, regra 70/20/10). */
+  tone?: 'neutral' | 'alert';
 }
 
-export const Card: React.FC<CardProps> = ({ title, value, description, icon, colorClass = 'text-red-line' }) => (
-  <div className="p-6 rounded-lg flex items-center space-x-4 transition-all hover:-translate-y-0.5" style={{ background: '#141414', border: '1px solid rgba(245,241,234,0.06)' }}>
-    <div className={`p-3 rounded-lg ${colorClass}`} style={{ background: 'rgba(255,42,42,0.08)' }}>
-      {icon}
+export const Card: React.FC<CardProps> = ({ title, value, description, icon, tone = 'neutral' }) => {
+  const alert = tone === 'alert';
+  return (
+    <div className="p-5 rounded-lg flex items-center gap-4 transition-all hover:-translate-y-0.5" style={{ background: '#141414', border: '1px solid rgba(245,241,234,0.06)' }}>
+      <div
+        className="p-3 rounded-lg shrink-0"
+        style={{ background: alert ? 'rgba(255,42,42,0.10)' : 'rgba(245,241,234,0.05)', color: alert ? '#ff2a2a' : '#8a8a8a' }}
+      >
+        {icon}
+      </div>
+      {/* min-w-0 deixa o filho encolher dentro do flex; sem ele o texto estoura o card */}
+      <div className="min-w-0">
+        <p className="truncate" style={{ color: '#8a8a8a', fontFamily: '"JetBrains Mono", monospace', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase' as const }} title={title}>{title}</p>
+        <p className="truncate tabular-nums" style={{ color: alert ? '#ff2a2a' : '#f5f1ea', fontFamily: '"Archivo Black", sans-serif', fontSize: '26px', lineHeight: 1.15, letterSpacing: '-0.02em' }} title={String(value)}>{value}</p>
+        {description && <p className="text-xs truncate" style={{ color: '#8a8a8a' }} title={description}>{description}</p>}
+      </div>
     </div>
-    <div>
-      <p className="text-sm font-medium" style={{ color: '#8a8a8a', fontFamily: '"JetBrains Mono", monospace', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase' as const }}>{title}</p>
-      <p className="text-2xl font-bold" style={{ color: '#f5f1ea', fontFamily: '"Archivo Black", sans-serif' }}>{value}</p>
-      {description && <p className="text-xs" style={{ color: '#8a8a8a' }}>{description}</p>}
-    </div>
-  </div>
-);
+  );
+};
 
 // --- Badge Component ---
 interface BadgeProps {

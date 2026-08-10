@@ -20,14 +20,14 @@ const CustomTooltip = ({ active, payload, label, isCurrency = true }: any) => {
         // Map gradient fill names to readable colors for tooltip
         const getEntryColor = (entry: any) => {
             const colorStr = entry.fill || entry.color || '#fff';
-            if (colorStr.includes('receitaRealizada')) return '#22c55e';
-            if (colorStr.includes('receitaPrevista')) return '#86efac';
-            if (colorStr.includes('despesaRealizada')) return '#f97316';
-            if (colorStr.includes('despesaPrevista')) return '#fdba74';
-            return entry.color || '#94a3b8';
+            if (colorStr.includes('receitaRealizada')) return '#f5f1ea';
+            if (colorStr.includes('receitaPrevista')) return 'rgba(245,241,234,0.6)';
+            if (colorStr.includes('despesaRealizada')) return '#ff2a2a';
+            if (colorStr.includes('despesaPrevista')) return 'rgba(255,42,42,0.6)';
+            return entry.color || '#8a8a8a';
         };
         return (
-            <div className="bg-slate-900/95 dark:bg-slate-900 backdrop-blur-sm px-4 py-3 rounded-xl shadow-xl border border-slate-600">
+            <div className="backdrop-blur-sm px-4 py-3 rounded-lg shadow-xl" style={{ background: "rgba(20,20,20,0.97)", border: "1px solid rgba(245,241,234,0.12)" }}>
                 <p className="text-white text-sm font-bold mb-2">{label}</p>
                 {payload.map((entry: any, index: number) => (
                     <p key={index} className="text-sm font-medium" style={{ color: getEntryColor(entry) }}>
@@ -42,19 +42,35 @@ const CustomTooltip = ({ active, payload, label, isCurrency = true }: any) => {
 };
 
 // Axis tick color that works in both light and dark modes
-const AXIS_TICK_COLOR = '#94a3b8'; // slate-400 — visible on both bg
+const AXIS_TICK_COLOR = '#8a8a8a'; // grey da marca
 
-// Custom legend
+// Degraus do ranking: cada fundo traz a tinta que se lê sobre ele.
+const RANK_COLORS: { bg: string; fg: string }[] = [
+    { bg: '#ff2a2a', fg: '#0a0a0a' },
+    { bg: '#c40000', fg: '#f5f1ea' },
+    { bg: '#f5f1ea', fg: '#0a0a0a' },
+    { bg: '#8a8a8a', fg: '#0a0a0a' },
+    { bg: '#2a2a2a', fg: '#f5f1ea' },
+];
+
+// Custom legend — cores fixas por série (gradientes não expõem entry.color)
+const LEGEND_COLORS: { [name: string]: string } = {
+    'Receita Realizada': '#f5f1ea',
+    'Receita Prevista': 'rgba(245,241,234,0.45)',
+    'Despesa Realizada': '#ff2a2a',
+    'Despesa Prevista': 'rgba(255,42,42,0.45)',
+};
+
 const CustomLegend = ({ payload }: any) => {
     return (
-        <div className="flex flex-wrap justify-center gap-4 sm:gap-6 mt-4">
+        <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-1.5 pt-4 h-full">
             {payload?.map((entry: any, index: number) => (
-                <div key={index} className="flex items-center gap-2">
+                <div key={index} className="flex items-center gap-1.5">
                     <div
-                        className="w-3 h-3 rounded-full"
-                        style={{ backgroundColor: entry.color }}
+                        className="w-2.5 h-2.5 rounded-sm shrink-0"
+                        style={{ backgroundColor: LEGEND_COLORS[entry.value] || entry.color || '#8a8a8a' }}
                     />
-                    <span className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 font-medium">{entry.value}</span>
+                    <span style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '9px', letterSpacing: '0.08em', color: '#8a8a8a', textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{entry.value}</span>
                 </div>
             ))}
         </div>
@@ -257,9 +273,9 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
         const locado = veiculos.filter(v => v.status === 'Locado').length;
         const manutencao = veiculos.filter(v => v.status === 'Em manutenção').length;
         return [
-            { name: 'Locados', value: locado, color: '#22c55e' },
-            { name: 'Disponíveis', value: disponivel, color: '#0ea5e9' },
-            { name: 'Em Manutenção', value: manutencao, color: '#f59e0b' },
+            { name: 'Locados', value: locado, color: '#f5f1ea' },
+            { name: 'Disponíveis', value: disponivel, color: '#8a8a8a' },
+            { name: 'Em Manutenção', value: manutencao, color: '#ff2a2a' },
         ].filter(item => item.value > 0);
     }, [veiculos]);
 
@@ -306,15 +322,17 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
     };
 
     const funnelData = useMemo(() => {
+        // Rampa de intensidade da marca: o maior gasto e o vermelho pleno e os
+        // seguintes esmaecem. A cor codifica magnitude, nao categoria.
         const FUNNEL_COLORS = [
-            '#6366f1', // Indigo
-            '#0ea5e9', // Sky
-            '#f59e0b', // Amber
-            '#22c55e', // Green
-            '#ef4444', // Red
-            '#8b5cf6', // Violet
-            '#ec4899', // Pink
-            '#14b8a6', // Teal
+            '#ff2a2a',
+            '#d81f1f',
+            '#a81a1a',
+            '#7a1717',
+            '#5a1515',
+            '#3f1414',
+            '#33302c',
+            '#2a2a2a',
         ];
 
         // Filter despesas, manutencoes and multas by vehicle if needed
@@ -407,13 +425,13 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
             <Header title="Dashboard" description="Visão geral do desempenho e saúde da sua frota." />
 
             {/* KPIs */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 sm:gap-6 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
                 <Card title="Veículos na Frota" value={totalVeiculos} description={`${locados} locados / ${parados} parados`} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V7a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>} />
-                <Card title="Taxa de Ocupação" value={`${taxaOcupacao}%`} description="No mês atual" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" /></svg>} colorClass="text-green-600" />
-                <Card title="Receita do Mês" value={formatCurrency(receitaMes)} description="Receita confirmada" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v.01" /></svg>} colorClass="text-blue-600" />
-                <Card title="Inadimplência" value={formatCurrency(inadimplencia)} description="Valor em aberto" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>} colorClass="text-orange-600" />
-                <Card title="ROI Global" value={`${roi.toFixed(1)}%`} description="Retorno Investimento" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>} colorClass="text-indigo-600" />
-                <Card title="ROE Global" value={`${roe.toFixed(1)}%`} description="Retorno Patrimônio" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} colorClass="text-purple-600" />
+                <Card title="Taxa de Ocupação" value={`${taxaOcupacao}%`} description="No mês atual" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" /></svg>} />
+                <Card title="Receita do Mês" value={formatCurrency(receitaMes)} description="Receita confirmada" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v.01" /></svg>} />
+                <Card title="Inadimplência" value={formatCurrency(inadimplencia)} description="Valor em aberto" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>} tone={inadimplencia > 0 ? "alert" : "neutral"} />
+                <Card title="ROI Global" value={`${roi.toFixed(1)}%`} description="Retorno Investimento" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>} />
+                <Card title="ROE Global" value={`${roe.toFixed(1)}%`} description="Retorno Patrimônio" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
             </div>
 
             {/* Charts Row 1 */}
@@ -428,26 +446,26 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                         <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-lg">
                             <button
                                 onClick={() => setChartViewMode('realizado')}
-                                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${chartViewMode === 'realizado' ? 'bg-white dark:bg-slate-700 text-green-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${chartViewMode === 'realizado' ? 'bg-[#2a2a2a] text-[#f5f1ea] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                             >
                                 Realizado
                             </button>
                             <button
                                 onClick={() => setChartViewMode('previsto')}
-                                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${chartViewMode === 'previsto' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${chartViewMode === 'previsto' ? 'bg-[#2a2a2a] text-[#f5f1ea] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                             >
                                 Previsto
                             </button>
                             <button
                                 onClick={() => setChartViewMode('ambos')}
-                                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${chartViewMode === 'ambos' ? 'bg-white dark:bg-slate-700 text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${chartViewMode === 'ambos' ? 'bg-[#2a2a2a] text-[#f5f1ea] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                             >
                                 Ambos
                             </button>
                         </div>
                     </div>
                     <ResponsiveContainer width="100%" height={300}>
-                        <BarChart data={dataGraficoReceitaDespesa} barGap={2} barCategoryGap="12%">
+                        <BarChart data={dataGraficoReceitaDespesa} barGap={3} barCategoryGap="22%" maxBarSize={18}>
                             <defs>
                                 <linearGradient id="receitaRealizadaGrad" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="0%" stopColor="#f5f1ea" stopOpacity={1} />
@@ -466,7 +484,7 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                                     <stop offset="100%" stopColor="#ff2a2a" stopOpacity={0.2} />
                                 </linearGradient>
                             </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} opacity={0.4} />
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(245,241,234,0.08)" vertical={false} opacity={0.4} />
                             <XAxis
                                 dataKey="name"
                                 axisLine={false}
@@ -480,18 +498,20 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                                 tick={{ fill: AXIS_TICK_COLOR, fontSize: 12, fontWeight: 500 }}
                             />
                             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(0,0,0,0.05)' }} />
-                            <Legend content={<CustomLegend />} />
+                            {/* height reserva a faixa da legenda no layout do gráfico; sem ela
+                                a legenda customizada se sobrepõe aos rótulos do eixo X. */}
+                            <Legend content={<CustomLegend />} verticalAlign="bottom" height={46} />
                             {(chartViewMode === 'realizado' || chartViewMode === 'ambos') && (
-                                <Bar dataKey="ReceitaRealizada" name="Receita Realizada" fill="url(#receitaRealizadaGrad)" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="ReceitaRealizada" name="Receita Realizada" fill="url(#receitaRealizadaGrad)" radius={[3, 3, 0, 0]} />
                             )}
                             {(chartViewMode === 'previsto' || chartViewMode === 'ambos') && (
-                                <Bar dataKey="ReceitaPrevista" name="Receita Prevista" fill="url(#receitaPrevistaGrad)" radius={[4, 4, 0, 0]} strokeDasharray="4 2" stroke="#f5f1ea" strokeWidth={1} />
+                                <Bar dataKey="ReceitaPrevista" name="Receita Prevista" fill="url(#receitaPrevistaGrad)" radius={[3, 3, 0, 0]} />
                             )}
                             {(chartViewMode === 'realizado' || chartViewMode === 'ambos') && (
-                                <Bar dataKey="DespesaRealizada" name="Despesa Realizada" fill="url(#despesaRealizadaGrad)" radius={[4, 4, 0, 0]} />
+                                <Bar dataKey="DespesaRealizada" name="Despesa Realizada" fill="url(#despesaRealizadaGrad)" radius={[3, 3, 0, 0]} />
                             )}
                             {(chartViewMode === 'previsto' || chartViewMode === 'ambos') && (
-                                <Bar dataKey="DespesaPrevista" name="Despesa Prevista" fill="url(#despesaPrevistaGrad)" radius={[4, 4, 0, 0]} strokeDasharray="4 2" stroke="#ff2a2a" strokeWidth={1} />
+                                <Bar dataKey="DespesaPrevista" name="Despesa Prevista" fill="url(#despesaPrevistaGrad)" radius={[3, 3, 0, 0]} />
                             )}
                         </BarChart>
                     </ResponsiveContainer>
@@ -507,7 +527,7 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                         <div className="text-right">
                             <p className="text-2xl font-bold text-slate-800 dark:text-white">{taxaOcupacao}%</p>
                             {ocupacaoChange !== 0 && (
-                                <p className={`text-xs ${ocupacaoChange >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                <p className={`text-xs ${ocupacaoChange >= 0 ? 'text-[#f5f1ea]' : 'text-[#ff2a2a]'}`}>
                                     {ocupacaoChange >= 0 ? '+' : ''}{ocupacaoChange}% vs mês anterior
                                 </p>
                             )}
@@ -521,7 +541,7 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                                     <stop offset="95%" stopColor="#ff2a2a" stopOpacity={0} />
                                 </linearGradient>
                             </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} opacity={0.4} />
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(245,241,234,0.08)" vertical={false} opacity={0.4} />
                             <XAxis
                                 dataKey="name"
                                 axisLine={false}
@@ -604,7 +624,7 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                             <h3 className="font-semibold text-slate-800 dark:text-white">Top 5 Veículos Rentáveis</h3>
                             <p className="text-sm text-slate-500 dark:text-slate-400">Lucro líquido por veículo</p>
                         </div>
-                        <span className="text-xs font-medium px-2 py-1 bg-petrol-blue-100 dark:bg-petrol-blue-900/30 text-petrol-blue-700 dark:text-petrol-blue-300 rounded-full">
+                        <span className="text-xs px-2 py-1 rounded" style={{ background: 'rgba(255,42,42,0.12)', color: '#ff2a2a', fontFamily: '"JetBrains Mono", monospace', fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
                             Lucro total
                         </span>
                     </div>
@@ -612,22 +632,27 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                         {veiculosRentaveis.map((v, i) => {
                             const maxLucro = Math.max(...veiculosRentaveis.map(x => x.lucro));
                             const percentage = maxLucro > 0 ? (v.lucro / maxLucro) * 100 : 0;
-                            const colors = ['bg-[#ff2a2a]', 'bg-[#c40000]', 'bg-[#f5f1ea]', 'bg-[#8a8a8a]', 'bg-[#2a2a2a]'];
+                            // Cada degrau do ranking carrega sua própria cor de texto:
+                            // fundo claro pede tinta preta, fundo escuro pede bone.
+                            const rank = RANK_COLORS[i] ?? RANK_COLORS[RANK_COLORS.length - 1];
                             return (
                                 <div key={i} className="relative">
-                                    <div className="flex items-center justify-between mb-1">
-                                        <div className="flex items-center gap-3">
-                                            <span className={`w-6 h-6 rounded-full ${colors[i]} text-white text-xs flex items-center justify-center font-bold`}>
+                                    <div className="flex items-center justify-between gap-3 mb-1">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <span
+                                                className="w-6 h-6 shrink-0 rounded-full text-xs flex items-center justify-center font-bold"
+                                                style={{ background: rank.bg, color: rank.fg, fontFamily: '"JetBrains Mono", monospace' }}
+                                            >
                                                 {i + 1}
                                             </span>
-                                            <span className="font-medium text-slate-700 dark:text-slate-200 text-sm">{v.veiculo}</span>
+                                            <span className="text-sm truncate" style={{ color: '#f5f1ea' }}>{v.veiculo}</span>
                                         </div>
-                                        <span className="font-bold text-green-600 dark:text-green-400">{formatCurrency(v.lucro)}</span>
+                                        <span className="font-bold shrink-0 tabular-nums" style={{ color: '#f5f1ea', fontFamily: '"JetBrains Mono", monospace', fontSize: '13px' }}>{formatCurrency(v.lucro)}</span>
                                     </div>
-                                    <div className="h-2 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+                                    <div className="h-2 rounded-full overflow-hidden" style={{ background: '#2a2a2a' }}>
                                         <div
-                                            className={`h-full ${colors[i]} rounded-full transition-all duration-500`}
-                                            style={{ width: `${percentage}%` }}
+                                            className="h-full rounded-full transition-all duration-500"
+                                            style={{ width: `${percentage}%`, background: rank.bg }}
                                         />
                                     </div>
                                 </div>
@@ -645,7 +670,7 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                         <p className="text-sm text-slate-500 dark:text-slate-400">
                             Distribuição dos custos por categoria
                             {funnelVeiculoFilter !== 'todos' && (
-                                <span className="ml-1 text-indigo-500 font-medium">• {funnelVeiculoFilter}</span>
+                                <span className="ml-1 font-medium" style={{ color: '#ff2a2a' }}>• {funnelVeiculoFilter}</span>
                             )}
                         </p>
                     </div>
@@ -700,7 +725,7 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                                                         <p className="text-white font-bold">{formatCurrency(data.value)}</p>
                                                         <p className="text-slate-400 text-xs mt-1">{percentGastos}% dos gastos</p>
                                                         {percentReceita && (
-                                                            <p className={`text-xs mt-0.5 ${parseFloat(percentReceita) >= 45 ? 'text-red-400 font-bold' : 'text-emerald-400'}`}>
+                                                            <p className={`text-xs mt-0.5 ${parseFloat(percentReceita) >= 45 ? 'text-[#ff2a2a] font-bold' : 'text-[#8a8a8a]'}`}>
                                                                 {percentReceita}% da receita
                                                             </p>
                                                         )}
@@ -731,16 +756,16 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
 
                         {/* Summary sidebar */}
                         <div className="space-y-3">
-                            <div className="bg-gradient-to-br from-indigo-500 to-violet-600 p-4 rounded-xl text-white">
-                                <p className="text-indigo-100 text-sm font-medium">Total de Gastos</p>
-                                <p className="text-2xl font-bold mt-1">{formatCurrency(totalFunnelGastos)}</p>
-                                <p className="text-indigo-200 text-xs mt-2">{funnelData.length} categorias</p>
+                            <div className="p-4 rounded-lg" style={{ background: '#141414', border: '1px solid rgba(245,241,234,0.08)' }}>
+                                <p style={{ color: '#8a8a8a', fontFamily: '"JetBrains Mono", monospace', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Total de Gastos</p>
+                                <p className="mt-1 tabular-nums" style={{ color: '#ff2a2a', fontFamily: '"Archivo Black", sans-serif', fontSize: '24px', letterSpacing: '-0.02em' }}>{formatCurrency(totalFunnelGastos)}</p>
+                                <p className="text-xs mt-2" style={{ color: '#8a8a8a' }}>{funnelData.length} categorias</p>
                             </div>
                             {totalFunnelReceita > 0 && (
-                                <div className="bg-gradient-to-br from-emerald-500 to-green-600 p-4 rounded-xl text-white">
-                                    <p className="text-emerald-100 text-sm font-medium">Receita Arrecadada</p>
-                                    <p className="text-2xl font-bold mt-1">{formatCurrency(totalFunnelReceita)}</p>
-                                    <p className="text-emerald-200 text-xs mt-2">
+                                <div className="p-4 rounded-lg" style={{ background: '#141414', border: '1px solid rgba(245,241,234,0.08)' }}>
+                                    <p style={{ color: '#8a8a8a', fontFamily: '"JetBrains Mono", monospace', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Receita Arrecadada</p>
+                                    <p className="mt-1 tabular-nums" style={{ color: '#f5f1ea', fontFamily: '"Archivo Black", sans-serif', fontSize: '24px', letterSpacing: '-0.02em' }}>{formatCurrency(totalFunnelReceita)}</p>
+                                    <p className="text-xs mt-2" style={{ color: '#8a8a8a' }}>
                                         Gastos = {totalFunnelReceita > 0 ? ((totalFunnelGastos / totalFunnelReceita) * 100).toFixed(1) : '0'}% da receita
                                     </p>
                                 </div>
@@ -750,12 +775,12 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                             {funnelAlerts.length > 0 && (
                                 <div className="space-y-2">
                                     {funnelAlerts.map((alert, i) => (
-                                        <div key={i} className="flex items-start gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
-                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" viewBox="0 0 20 20" fill="currentColor">
+                                        <div key={i} className="flex items-start gap-2 p-3 rounded-lg" style={{ background: 'rgba(255,42,42,0.08)', border: '1px solid rgba(255,42,42,0.28)' }}>
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 flex-shrink-0 mt-0.5" style={{ color: '#ff2a2a' }} viewBox="0 0 20 20" fill="currentColor">
                                                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                                             </svg>
                                             <div>
-                                                <p className="text-sm font-bold text-red-700 dark:text-red-400">
+                                                <p className="text-sm font-bold" style={{ color: '#ff2a2a' }}>
                                                     ⚠ {alert.name}: {alert.percentage}% da receita
                                                 </p>
                                                 <p className="text-xs text-red-600 dark:text-red-500 mt-0.5">
@@ -851,7 +876,7 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                         </div>
                     )) : (
                         <div className="col-span-full text-center py-6 text-slate-500 dark:text-slate-400">
-                            <svg className="w-12 h-12 mx-auto mb-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <svg className="w-12 h-12 mx-auto mb-2" style={{ color: '#8a8a8a' }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                             <p>Nenhum alerta no momento. Tudo em dia!</p>
