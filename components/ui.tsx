@@ -38,34 +38,45 @@ export const Card: React.FC<CardProps> = ({ title, value, description, icon, ton
 interface BadgeProps {
   status: StatusVeiculo | StatusContrato | StatusPagamento | StatusMotorista | StatusGenerico | StatusMulta | StatusSinistro | string;
 }
-export const Badge: React.FC<BadgeProps> = ({ status }) => {
-  const baseClasses = "px-2.5 sm:px-3 py-1 sm:py-1.5 text-xs sm:text-xs font-bold text-white rounded inline-block uppercase tracking-wider";
-  const colorClasses: { [key: string]: string } = {
-    'Disponível': 'bg-green-600',
-    'Locado': 'bg-blue-600',
-    'Em manutenção': 'bg-yellow-600',
-    'Vendido': 'bg-gray-600',
-    'Em vigor': 'bg-green-600',
-    'Encerrado': 'bg-gray-600',
-    'Em atraso': 'bg-red-line',
-    'Pago': 'bg-green-600',
-    'Em aberto': 'bg-yellow-600',
-    'Atrasado': 'bg-red-line',
-    'Ativo': 'bg-green-600',
-    'Inadimplente': 'bg-orange-600',
-    'Histórico': 'bg-gray-600',
-    'Inativo': 'bg-gray-600',
-    'Paga': 'bg-green-600',
-    'Em recurso': 'bg-blue-600',
-    'Em análise': 'bg-yellow-600',
-    'Indenizado': 'bg-blue-600',
-    'Concluído': 'bg-green-600',
-    'Válido': 'bg-green-600',
-    'Vencido': 'bg-red-line',
-    'Próximo Vencimento': 'bg-yellow-600',
-  };
+/** Quatro leituras de estado, dentro da paleta da marca. O semáforo
+ *  verde/azul/âmbar entregava a informação, mas numa tela 70% preta dezenas
+ *  de badges saturados viravam o assunto visual da página. Aqui o contraste
+ *  vem do preenchimento — sólido, contornado, apagado — e não de matizes novas. */
+type BadgeTom = 'concluido' | 'em_curso' | 'inerte' | 'critico';
 
-  return <span className={`${baseClasses} ${colorClasses[status] || 'bg-gray-600'}`} style={{ fontFamily: '"JetBrains Mono", monospace', fontSize: '9px', letterSpacing: '0.12em' }}>{status}</span>;
+const BADGE_TOM: Record<BadgeTom, React.CSSProperties> = {
+  // fechado com êxito: recebido, ativo, válido
+  concluido: { background: 'rgba(245,241,234,0.10)', color: '#f5f1ea', border: '1px solid rgba(245,241,234,0.22)' },
+  // em andamento: contorno em vez de preenchimento — presente, sem gritar
+  em_curso:  { background: 'transparent',            color: '#f5f1ea', border: '1px solid rgba(245,241,234,0.30)' },
+  // sem energia: encerrado, vendido, histórico
+  inerte:    { background: 'rgba(138,138,138,0.10)', color: '#8a8a8a', border: '1px solid rgba(138,138,138,0.20)' },
+  // exige ação — o único que usa o vermelho da marca
+  critico:   { background: 'rgba(255,42,42,0.12)',   color: '#ff2a2a', border: '1px solid rgba(255,42,42,0.35)' },
+};
+
+const STATUS_TOM: { [key: string]: BadgeTom } = {
+  'Disponível': 'concluido', 'Pago': 'concluido', 'Paga': 'concluido', 'Ativo': 'concluido',
+  'Válido': 'concluido', 'Concluído': 'concluido', 'Indenizado': 'concluido', 'Em vigor': 'concluido',
+
+  'Locado': 'em_curso', 'Em aberto': 'em_curso', 'Em análise': 'em_curso',
+  'Em recurso': 'em_curso', 'Em manutenção': 'em_curso', 'Próximo Vencimento': 'em_curso',
+
+  'Encerrado': 'inerte', 'Vendido': 'inerte', 'Histórico': 'inerte', 'Inativo': 'inerte',
+
+  'Atrasado': 'critico', 'Em atraso': 'critico', 'Vencido': 'critico', 'Inadimplente': 'critico',
+};
+
+export const Badge: React.FC<BadgeProps> = ({ status }) => {
+  const tom = BADGE_TOM[STATUS_TOM[status] ?? 'inerte'];
+  return (
+    <span
+      className="px-2.5 py-1 rounded inline-block uppercase whitespace-nowrap"
+      style={{ ...tom, fontFamily: '"JetBrains Mono", monospace', fontSize: '9px', fontWeight: 700, letterSpacing: '0.12em' }}
+    >
+      {status}
+    </span>
+  );
 };
 
 // --- Header Component ---

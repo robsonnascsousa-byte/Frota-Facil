@@ -111,7 +111,7 @@ const VeiculoCard: React.FC<{
         onEdit();
     };
 
-    const profitColor = financeiro.rentabilidadeReal >= 0 ? 'text-green-400' : 'text-red-400';
+    const profitColor = financeiro.rentabilidadeReal >= 0 ? 'text-[#f5f1ea]' : 'text-[#ff2a2a]';
 
     return (
         <div
@@ -581,14 +581,14 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
                                 <div className="flex space-x-2">
                                     <button
                                         onClick={() => handleEditClick(veiculo)}
-                                        className="text-petrol-blue-600 hover:text-petrol-blue-800 dark:text-petrol-blue-400 dark:hover:text-petrol-blue-300 font-medium text-sm"
+                                        className="font-medium text-sm transition-colors" style={{ color: '#f5f1ea' }}
                                         aria-label={`Editar veículo ${veiculo.placa}`}
                                     >
                                         Editar
                                     </button>
                                     <button
                                         onClick={() => handleDeleteClick(veiculo)}
-                                        className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium text-sm"
+                                        className="font-medium text-sm transition-colors" style={{ color: '#ff2a2a' }}
                                         aria-label={`Excluir veículo ${veiculo.placa}`}
                                     >
                                         Excluir
@@ -741,14 +741,14 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
 
                             {/* Sale Configuration Panel */}
                             {editingVehicle.status === 'Vendido' && (
-                                <div className="md:col-span-2 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800 space-y-4">
+                                <div className="md:col-span-2 p-4 rounded-lg space-y-4 bg-[rgba(255,42,42,0.07)] border border-[rgba(255,42,42,0.28)]">
                                     <div className="flex items-center gap-2 mb-1">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-600" viewBox="0 0 20 20" fill="currentColor">
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" style={{color:'#ff2a2a'}} viewBox="0 0 20 20" fill="currentColor">
                                             <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
                                         </svg>
-                                        <h4 className="font-bold text-amber-800 dark:text-amber-300">Configuração da Venda</h4>
+                                        <h4 className="font-bold" style={{color:'#f5f1ea'}}>Configuração da Venda</h4>
                                     </div>
-                                    <p className="text-xs text-amber-700 dark:text-amber-400 -mt-2">O valor será registrado automaticamente no seu fluxo financeiro.</p>
+                                    <p className="text-xs -mt-2" style={{color:'#8a8a8a'}}>O valor será registrado automaticamente no seu fluxo financeiro.</p>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
@@ -771,14 +771,14 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
                                                 <button
                                                     type="button"
                                                     onClick={() => setSaleConfig(prev => ({ ...prev, tipo: 'avista' }))}
-                                                    className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${saleConfig.tipo === 'avista' ? 'bg-white dark:bg-slate-600 text-green-600 shadow-sm' : 'text-slate-500'}`}
+                                                    className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${saleConfig.tipo === 'avista' ? 'bg-[#2a2a2a] text-[#f5f1ea] shadow-sm' : 'text-slate-500'}`}
                                                 >
                                                     À Vista
                                                 </button>
                                                 <button
                                                     type="button"
                                                     onClick={() => setSaleConfig(prev => ({ ...prev, tipo: 'parcelado' }))}
-                                                    className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${saleConfig.tipo === 'parcelado' ? 'bg-white dark:bg-slate-600 text-blue-600 shadow-sm' : 'text-slate-500'}`}
+                                                    className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${saleConfig.tipo === 'parcelado' ? 'bg-[#2a2a2a] text-[#f5f1ea] shadow-sm' : 'text-slate-500'}`}
                                                 >
                                                     Parcelado
                                                 </button>
@@ -787,7 +787,7 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
                                     </div>
 
                                     {saleConfig.tipo === 'parcelado' && (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-amber-200 dark:border-amber-800">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-[rgba(255,42,42,0.28)]">
                                             <div>
                                                 <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">Valor da Entrada (R$)</label>
                                                 <input
@@ -815,10 +815,10 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
                                                     <p className="text-xs text-slate-500 dark:text-slate-400">
                                                         {saleConfig.valorEntrada > 0 && (
                                                             <span className="block mb-1">
-                                                                <span className="font-semibold text-green-600">Entrada:</span> {formatCurrency(saleConfig.valorEntrada)} (recebido na venda)
+                                                                <span className="font-semibold" style={{color:'#f5f1ea'}}>Entrada:</span> {formatCurrency(saleConfig.valorEntrada)} (recebido na venda)
                                                             </span>
                                                         )}
-                                                        <span className="font-semibold text-blue-600">Saldo:</span>{' '}
+                                                        <span className="font-semibold" style={{color:'#f5f1ea'}}>Saldo:</span>{' '}
                                                         {saleConfig.numParcelas}x de{' '}
                                                         {formatCurrency((Number(editingVehicle.valor_venda) - saleConfig.valorEntrada) / saleConfig.numParcelas)}
                                                         {' '}= {formatCurrency(Number(editingVehicle.valor_venda) - saleConfig.valorEntrada)}
@@ -829,7 +829,7 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
                                     )}
 
                                     {saleConfig.tipo === 'avista' && (
-                                        <p className="text-xs text-green-700 dark:text-green-400 italic">
+                                        <p className="text-xs italic" style={{color:'#8a8a8a'}}>
                                             ✓ Receita de {formatCurrency(Number(editingVehicle.valor_venda) || 0)} será registrada como paga.
                                         </p>
                                     )}
@@ -939,9 +939,9 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
                             </h4>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                                <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg border border-green-100 dark:border-green-800">
-                                    <p className="text-xs text-green-700 dark:text-green-400 font-medium uppercase">Receita Total</p>
-                                    <p className="text-xl font-bold text-green-700 dark:text-green-300">
+                                <div className="p-3 rounded-lg" style={{background:'rgba(245,241,234,0.05)', border:'1px solid rgba(245,241,234,0.12)'}}>
+                                    <p className="text-xs font-medium uppercase" style={{color:'#8a8a8a'}}>Receita Total</p>
+                                    <p className="text-xl font-bold" style={{color:'#f5f1ea'}}>
                                         {formatCurrency(financials[selectedVehicle.id]?.receitaTotal || 0)}
                                     </p>
                                 </div>
@@ -951,9 +951,9 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
                                         {formatCurrency(financials[selectedVehicle.id]?.totalCustos || 0)}
                                     </p>
                                 </div>
-                                <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-100 dark:border-blue-800">
-                                    <p className="text-xs text-blue-700 dark:text-blue-400 font-medium uppercase">Lucro Líquido</p>
-                                    <p className="text-xl font-bold text-blue-700 dark:text-blue-300">
+                                <div className="p-3 rounded-lg" style={{background:'rgba(245,241,234,0.05)', border:'1px solid rgba(245,241,234,0.12)'}}>
+                                    <p className="text-xs font-medium uppercase" style={{color:'#8a8a8a'}}>Lucro Líquido</p>
+                                    <p className="text-xl font-bold" style={{color:'#f5f1ea'}}>
                                         {formatCurrency(financials[selectedVehicle.id]?.lucroOperacional || 0)}
                                     </p>
                                 </div>
@@ -968,20 +968,20 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
                                     <span className="text-sm text-slate-500 dark:text-slate-400">
                                         {(selectedVehicle.valor_venda && selectedVehicle.valor_venda > 0) ? 'Valor de Venda (Realizado)' : 'Valor Atual (FIPE)'}
                                     </span>
-                                    <span className="font-mono text-green-600 dark:text-green-400">
+                                    <span className="font-mono" style={{color:'#f5f1ea'}}>
                                         +{formatCurrency((selectedVehicle.valor_venda && selectedVehicle.valor_venda > 0) ? selectedVehicle.valor_venda : selectedVehicle.valor_fipe)}
                                     </span>
                                 </div>
                                 <div className="flex justify-between items-center mb-2">
                                     <span className="text-sm text-slate-500 dark:text-slate-400">Depreciação/Valorização</span>
-                                    <span className={`font-mono ${((selectedVehicle.valor_venda && selectedVehicle.valor_venda > 0) ? selectedVehicle.valor_venda : selectedVehicle.valor_fipe) >= selectedVehicle.valor_compra ? 'text-green-600' : 'text-red-500'}`}>
+                                    <span className={`font-mono ${((selectedVehicle.valor_venda && selectedVehicle.valor_venda > 0) ? selectedVehicle.valor_venda : selectedVehicle.valor_fipe) >= selectedVehicle.valor_compra ? 'text-[#f5f1ea]' : 'text-[#ff2a2a]'}`}>
                                         {formatCurrency(((selectedVehicle.valor_venda && selectedVehicle.valor_venda > 0) ? selectedVehicle.valor_venda : selectedVehicle.valor_fipe) - selectedVehicle.valor_compra)}
                                     </span>
                                 </div>
                                 <div className="border-t border-slate-200 dark:border-slate-600 my-2"></div>
                                 <div className="flex justify-between items-center">
                                     <span className="font-bold text-slate-800 dark:text-white">{selectedVehicle.status === 'Vendido' ? 'Resultado da Venda' : 'Resultado Final (Se vendesse hoje)'}</span>
-                                    <span className={`text-lg font-bold ${financials[selectedVehicle.id]?.rentabilidadeReal >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    <span className={`text-lg font-bold ${financials[selectedVehicle.id]?.rentabilidadeReal >= 0 ? 'text-[#f5f1ea]' : 'text-[#ff2a2a]'}`}>
                                         {formatCurrency(financials[selectedVehicle.id]?.rentabilidadeReal || 0)}
                                     </span>
                                 </div>

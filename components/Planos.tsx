@@ -150,14 +150,14 @@ const Planos: React.FC<PlanosProps> = ({ planos, onAddPlano, onDeletePlano, onUp
                 <div className="flex space-x-2">
                   <button
                     onClick={() => handleEditClick(plano)}
-                    className="text-petrol-blue-600 hover:text-petrol-blue-800 dark:text-petrol-blue-400 dark:hover:text-petrol-blue-300 font-medium text-sm"
+                    className="font-medium text-sm transition-colors" style={{ color: '#f5f1ea' }}
                     aria-label={`Editar plano ${plano.nome}`}
                   >
                     Editar
                   </button>
                   <button
                     onClick={() => handleDeleteClick(plano)}
-                    className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium text-sm"
+                    className="font-medium text-sm transition-colors" style={{ color: '#ff2a2a' }}
                     aria-label={`Excluir plano ${plano.nome}`}
                   >
                     Excluir

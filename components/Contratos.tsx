@@ -148,9 +148,9 @@ Este é um documento de simulação para o arquivo: ${contrato.documento_anexado
 
   const getStatusColor = (status: string) => {
     const colorClasses: { [key: string]: string } = {
-      'Em vigor': 'bg-green-500',
+      'Em vigor': 'bg-[rgba(245,241,234,0.10)] text-[#f5f1ea] ring-1 ring-[rgba(245,241,234,0.22)]',
       'Encerrado': 'bg-slate-500',
-      'Em atraso': 'bg-red-500',
+      'Em atraso': 'bg-[rgba(255,42,42,0.12)] text-[#ff2a2a] ring-1 ring-[rgba(255,42,42,0.35)]',
     };
     return colorClasses[status] || 'bg-gray-500';
   }
@@ -219,7 +219,7 @@ Este é um documento de simulação para o arquivo: ${contrato.documento_anexado
                 item.documento_anexado ? (
                   <button
                     onClick={() => handleDownload(item)}
-                    className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 font-medium truncate hover:underline"
+                    className="font-medium truncate hover:underline" style={{color:'#f5f1ea'}}
                     title={`Baixar ${item.documento_anexado}`}
                   >
                     {item.documento_anexado}
@@ -250,21 +250,21 @@ Este é um documento de simulação para o arquivo: ${contrato.documento_anexado
                 <div className="flex items-center space-x-3">
                   <button
                     onClick={() => handleEditClick(contrato)}
-                    className="text-petrol-blue-700 hover:text-petrol-blue-900 dark:text-petrol-blue-400 dark:hover:text-petrol-blue-300 font-medium text-sm"
+                    className="font-medium text-sm transition-colors" style={{ color: '#f5f1ea' }}
                     aria-label={`Editar contrato ${contrato.id}`}
                   >
                     Editar
                   </button>
                   <button
                     onClick={() => handleAnexarClick(contrato.id)}
-                    className="text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium text-sm"
+                    className="font-medium text-sm transition-colors" style={{ color: '#8a8a8a' }}
                     aria-label={`Anexar documento para o contrato ${contrato.id}`}
                   >
                     Anexar
                   </button>
                   <button
                     onClick={() => handleDeleteClick(contrato)}
-                    className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium text-sm"
+                    className="font-medium text-sm transition-colors" style={{ color: '#ff2a2a' }}
                     aria-label={`Excluir contrato ${contrato.id}`}
                   >
                     Excluir

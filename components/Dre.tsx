@@ -221,14 +221,14 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
                 {/* Left Side - KPIs (25%) */}
                 <div className="lg:col-span-1 space-y-6">
-                    <div className="bg-white dark:bg-slate-800 p-6 rounded-sm border-l-4 border-petrol-blue-600 shadow-sm">
+                    <div className="bg-white dark:bg-slate-800 p-6 rounded-sm border-l-4 shadow-sm border-[rgba(245,241,234,0.25)]">
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-tighter mb-1">Receita Líquida</p>
                         <p className="text-2xl font-mono font-bold text-slate-900 dark:text-white tabular-nums">
                             {formatCurrency(currentDRE.receitaLiquida)}
                         </p>
                     </div>
 
-                    <div className="bg-white dark:bg-slate-800 p-6 rounded-sm border-l-4 border-amber-500 shadow-sm">
+                    <div className="bg-white dark:bg-slate-800 p-6 rounded-sm border-l-4 shadow-sm border-[rgba(245,241,234,0.5)]">
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-tighter mb-1">EBITDA</p>
                         <p className="text-2xl font-mono font-bold text-slate-900 dark:text-white tabular-nums">
                             {formatCurrency(currentDRE.ebitda)}
@@ -238,13 +238,13 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
                         </div>
                     </div>
 
-                    <div className={`bg-white dark:bg-slate-800 p-6 rounded-sm border-l-4 shadow-sm ${currentDRE.lucroLiquido >= 0 ? 'border-emerald-500' : 'border-rose-600'}`}>
+                    <div className={`bg-white dark:bg-slate-800 p-6 rounded-sm border-l-4 shadow-sm ${currentDRE.lucroLiquido >= 0 ? 'border-[#f5f1ea]' : 'border-[#ff2a2a]'}`}>
                         <p className="text-xs font-bold text-slate-400 uppercase tracking-tighter mb-1">Lucro Líquido</p>
-                        <p className={`text-3xl font-mono font-bold tabular-nums ${currentDRE.lucroLiquido >= 0 ? 'text-emerald-500' : 'text-rose-600'}`}>
+                        <p className={`text-3xl font-mono font-bold tabular-nums ${currentDRE.lucroLiquido >= 0 ? 'text-[#f5f1ea]' : 'text-[#ff2a2a]'}`}>
                             {formatCurrency(currentDRE.lucroLiquido)}
                         </p>
                         <div className="mt-2 flex items-center gap-1">
-                            <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${currentDRE.lucroMargin >= 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+                            <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${currentDRE.lucroMargin >= 0 ? 'bg-[rgba(245,241,234,0.12)] text-[#f5f1ea]' : 'bg-[rgba(255,42,42,0.12)] text-[#ff2a2a]'}`}>
                                 {currentDRE.lucroMargin.toFixed(1)}% de margem
                             </span>
                         </div>
@@ -275,7 +275,7 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
                         </ResponsiveContainer>
                         <div className="flex justify-center gap-4 mt-1">
                             <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-cyan-600"></div><span className="text-[8px] text-slate-400">Rec</span></div>
-                            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-emerald-500"></div><span className="text-[8px] text-slate-400">EBITDA</span></div>
+                            <div className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-[#f5f1ea]"></div><span className="text-[8px] text-slate-400">EBITDA</span></div>
                         </div>
                     </div>
                 </div>
@@ -335,12 +335,12 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
                                     </td>
                                     {viewMode === 'comparative' ? (
                                         <>
-                                            {monthlyBreakdown.map((m, i) => <td key={i} className="text-right py-3 px-4 tabular-nums text-rose-500/80">({formatCurrency(m.impostosDeducoes)})</td>)}
-                                            <td className="text-right py-3 px-4 font-medium bg-slate-50 dark:bg-slate-900/50 tabular-nums text-rose-500">({formatCurrency(currentDRE.impostosDeducoes)})</td>
+                                            {monthlyBreakdown.map((m, i) => <td key={i} className="text-right py-3 px-4 tabular-nums text-[#ff2a2a]/80">({formatCurrency(m.impostosDeducoes)})</td>)}
+                                            <td className="text-right py-3 px-4 font-medium bg-slate-50 dark:bg-slate-900/50 tabular-nums text-[#ff2a2a]">({formatCurrency(currentDRE.impostosDeducoes)})</td>
                                         </>
                                     ) : (
                                         <>
-                                            <td className="text-right py-3 px-4 text-rose-500/80 tabular-nums">({formatCurrency(currentDRE.impostosDeducoes)})</td>
+                                            <td className="text-right py-3 px-4 text-[#ff2a2a]/80 tabular-nums">({formatCurrency(currentDRE.impostosDeducoes)})</td>
                                             <td className="text-right py-3 px-4 text-slate-400 tabular-nums">0.0%</td>
                                         </>
                                     )}
@@ -427,25 +427,25 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
                                 </tr>
 
                                 {/* 5. EBITDA */}
-                                <tr className="bg-emerald-50/50 dark:bg-emerald-900/20 font-black border-y-2 border-emerald-100 dark:border-emerald-800/50">
-                                    <td className="py-5 px-4 text-emerald-700 dark:text-emerald-400 sticky left-0 bg-emerald-50 dark:bg-slate-900 z-10 border-r border-emerald-100 dark:border-emerald-800">
+                                <tr className="font-black border-y-2" style={{background:'rgba(245,241,234,0.05)', borderColor:'rgba(245,241,234,0.18)'}}>
+                                    <td className="py-5 px-4 sticky left-0 z-10 border-r" style={{color:'#f5f1ea', background:'#141414', borderColor:'rgba(245,241,234,0.12)'}}>
                                         (=) EBITDA
                                     </td>
                                     {viewMode === 'comparative' ? (
                                         <>
                                             {monthlyBreakdown.map((m, i) => (
-                                                <td key={i} className={`text-right py-5 px-4 tabular-nums ${m.ebitda < 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                                <td key={i} className={`text-right py-5 px-4 tabular-nums ${m.ebitda < 0 ? 'text-[#ff2a2a]' : 'text-[#f5f1ea]'}`}>
                                                     {formatCurrency(m.ebitda)}
                                                 </td>
                                             ))}
-                                            <td className="text-right py-5 px-4 text-lg tabular-nums bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-200">
+                                            <td className="text-right py-5 px-4 text-lg tabular-nums" style={{background:'rgba(245,241,234,0.08)', color:'#f5f1ea'}}>
                                                 {formatCurrency(currentDRE.ebitda)}
                                             </td>
                                         </>
                                     ) : (
                                         <>
-                                            <td className="text-right py-5 px-4 text-lg tabular-nums text-emerald-600">{formatCurrency(currentDRE.ebitda)}</td>
-                                            <td className="text-right py-5 px-4 text-emerald-500 tabular-nums">
+                                            <td className="text-right py-5 px-4 text-lg tabular-nums" style={{color:'#f5f1ea'}}>{formatCurrency(currentDRE.ebitda)}</td>
+                                            <td className="text-right py-5 px-4 tabular-nums" style={{color:'#f5f1ea'}}>
                                                 {currentDRE.receitaBruta > 0 ? ((currentDRE.ebitda / currentDRE.receitaBruta) * 100).toFixed(1) : 0}%
                                             </td>
                                         </>
@@ -480,7 +480,7 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
                                     {viewMode === 'comparative' ? (
                                         <>
                                             {monthlyBreakdown.map((m, i) => (
-                                                <td key={i} className={`text-right py-6 px-4 tabular-nums ${m.lucroLiquido < 0 ? 'text-rose-300' : 'text-emerald-300'}`}>
+                                                <td key={i} className={`text-right py-6 px-4 tabular-nums ${m.lucroLiquido < 0 ? 'text-[#ff2a2a]' : 'text-[#f5f1ea]'}`}>
                                                     {formatCurrency(m.lucroLiquido)}
                                                 </td>
                                             ))}

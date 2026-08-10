@@ -89,12 +89,12 @@ const MultasSinistros: React.FC<MultasSinistrosProps> = ({
 
   const getStatusColor = (status: string) => {
     const colorClasses: { [key: string]: string } = {
-      'Paga': 'bg-green-500',
-      'Em aberto': 'bg-yellow-500',
-      'Em recurso': 'bg-blue-500',
-      'Em análise': 'bg-yellow-500',
-      'Indenizado': 'bg-blue-500',
-      'Concluído': 'bg-green-500',
+      'Paga': 'bg-[rgba(245,241,234,0.10)] text-[#f5f1ea] ring-1 ring-[rgba(245,241,234,0.22)]',
+      'Em aberto': 'bg-transparent text-[#f5f1ea] ring-1 ring-[rgba(245,241,234,0.30)]',
+      'Em recurso': 'bg-transparent text-[#f5f1ea] ring-1 ring-[rgba(245,241,234,0.30)]',
+      'Em análise': 'bg-transparent text-[#f5f1ea] ring-1 ring-[rgba(245,241,234,0.30)]',
+      'Indenizado': 'bg-[rgba(245,241,234,0.10)] text-[#f5f1ea] ring-1 ring-[rgba(245,241,234,0.22)]',
+      'Concluído': 'bg-[rgba(245,241,234,0.10)] text-[#f5f1ea] ring-1 ring-[rgba(245,241,234,0.22)]',
     };
     return colorClasses[status] || 'bg-gray-500';
   }
@@ -143,7 +143,7 @@ const MultasSinistros: React.FC<MultasSinistrosProps> = ({
               render: (multa) => (
                 <button
                   onClick={() => setMultaToDelete(multa)}
-                  className="text-red-600 hover:text-red-800 font-medium text-sm"
+                  className="font-medium text-sm transition-colors" style={{ color: '#ff2a2a' }}
                 >
                   Excluir
                 </button>
@@ -192,7 +192,7 @@ const MultasSinistros: React.FC<MultasSinistrosProps> = ({
               render: (sinistro) => (
                 <button
                   onClick={() => setSinistroToDelete(sinistro)}
-                  className="text-red-600 hover:text-red-800 font-medium text-sm"
+                  className="font-medium text-sm transition-colors" style={{ color: '#ff2a2a' }}
                 >
                   Excluir
                 </button>

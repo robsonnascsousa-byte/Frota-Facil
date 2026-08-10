@@ -255,12 +255,12 @@ const Financeiro: React.FC<FinanceiroProps> = ({
 
     const getStatusColor = (status: string) => {
         const colorClasses: { [key: string]: string } = {
-            'Paga': 'bg-green-500',
-            'Pago': 'bg-green-500',
-            'Em aberto': 'bg-yellow-500',
-            'Atrasado': 'bg-red-500'
+            'Paga': 'bg-[rgba(245,241,234,0.10)] text-[#f5f1ea] ring-1 ring-[rgba(245,241,234,0.22)]',
+            'Pago': 'bg-[rgba(245,241,234,0.10)] text-[#f5f1ea] ring-1 ring-[rgba(245,241,234,0.22)]',
+            'Em aberto': 'bg-transparent text-[#f5f1ea] ring-1 ring-[rgba(245,241,234,0.30)]',
+            'Atrasado': 'bg-[rgba(255,42,42,0.12)] text-[#ff2a2a] ring-1 ring-[rgba(255,42,42,0.35)]'
         };
-        return colorClasses[status] || 'bg-gray-500';
+        return colorClasses[status] || 'bg-[rgba(138,138,138,0.10)] text-[#8a8a8a] ring-1 ring-[rgba(138,138,138,0.20)]';
     }
 
 
@@ -334,7 +334,7 @@ const Financeiro: React.FC<FinanceiroProps> = ({
                                                         onUpdatePagamentoStatus(item.contratoId!, originalId, newStatus);
                                                     }
                                                 }}
-                                                className={`px-2.5 py-1 text-xs font-bold text-white rounded-full border-none appearance-none cursor-pointer uppercase tracking-wider focus:ring-2 focus:ring-offset-2 focus:ring-petrol-blue-500 ${getStatusColor(item.status)}`}
+                                                className={`px-2.5 py-1 text-xs font-bold rounded-full border-none appearance-none cursor-pointer uppercase tracking-wider focus:ring-2 focus:ring-offset-2 focus:ring-[#ff2a2a] ${getStatusColor(item.status)}`}
                                                 onClick={(e) => e.stopPropagation()}
                                             >
                                                 <option value="Em aberto">Em aberto</option>
@@ -349,13 +349,13 @@ const Financeiro: React.FC<FinanceiroProps> = ({
                                                 {!item.isManual && <span className="text-[10px] text-slate-400 italic bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded mr-1">Contrato</span>}
                                                 <button
                                                     onClick={() => handleEditClick(item)}
-                                                    className="text-petrol-blue-600 hover:text-petrol-blue-800 font-medium text-sm"
+                                                    className="font-medium text-sm transition-colors" style={{ color: '#f5f1ea' }}
                                                 >
                                                     Editar
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteClick(item, item.isManual ? 'receita' : 'pagamento')}
-                                                    className="text-red-600 hover:text-red-800 font-medium text-sm"
+                                                    className="font-medium text-sm transition-colors" style={{ color: '#ff2a2a' }}
                                                 >
                                                     Excluir
                                                 </button>
@@ -408,7 +408,7 @@ const Financeiro: React.FC<FinanceiroProps> = ({
                                                         onUpdateManutencaoStatus(originalId, newStatus);
                                                     }
                                                 }}
-                                                className={`px-2.5 py-1 text-xs font-bold text-white rounded-full border-none appearance-none cursor-pointer uppercase tracking-wider focus:ring-2 focus:ring-offset-2 focus:ring-petrol-blue-500 ${getStatusColor(item.status)}`}
+                                                className={`px-2.5 py-1 text-xs font-bold rounded-full border-none appearance-none cursor-pointer uppercase tracking-wider focus:ring-2 focus:ring-offset-2 focus:ring-[#ff2a2a] ${getStatusColor(item.status)}`}
                                                 onClick={(e) => e.stopPropagation()}
                                             >
                                                 <option value="Em aberto">Em aberto</option>
@@ -421,7 +421,7 @@ const Financeiro: React.FC<FinanceiroProps> = ({
                                             item.isManual ? (
                                                 <button
                                                     onClick={() => handleDeleteClick(item, 'despesa')}
-                                                    className="text-red-600 hover:text-red-800 font-medium text-sm"
+                                                    className="font-medium text-sm transition-colors" style={{ color: '#ff2a2a' }}
                                                 >
                                                     Excluir
                                                 </button>
@@ -443,14 +443,14 @@ const Financeiro: React.FC<FinanceiroProps> = ({
                         <button
                             type="button"
                             onClick={() => setFormData(prev => ({ ...prev, transacaoTipo: 'receita' }))}
-                            className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${formData.transacaoTipo === 'receita' ? 'bg-white dark:bg-slate-700 text-emerald-600 shadow-sm' : 'text-slate-500'}`}
+                            className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${formData.transacaoTipo === 'receita' ? 'bg-[#2a2a2a] text-[#f5f1ea] shadow-sm' : 'text-slate-500'}`}
                         >
                             Recebimento (+)
                         </button>
                         <button
                             type="button"
                             onClick={() => setFormData(prev => ({ ...prev, transacaoTipo: 'despesa' }))}
-                            className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${formData.transacaoTipo === 'despesa' ? 'bg-white dark:bg-slate-700 text-rose-600 shadow-sm' : 'text-slate-500'}`}
+                            className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${formData.transacaoTipo === 'despesa' ? 'bg-[#2a2a2a] text-[#ff2a2a] shadow-sm' : 'text-slate-500'}`}
                         >
                             Pagamento (-)
                         </button>
@@ -551,10 +551,10 @@ const Financeiro: React.FC<FinanceiroProps> = ({
             <Modal isOpen={!!itemToDelete} onClose={() => setItemToDelete(null)} title="Confirmar Exclusão">
                 <div className="p-1">
                     <p className="text-slate-600 dark:text-slate-400">Tem certeza que deseja excluir este lançamento?</p>
-                    <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900 p-4 my-4 rounded-lg border-l-4 border-rose-500 shadow-inner">
+                    <div className="flex items-center gap-3 p-4 my-4 rounded-lg border-l-4 shadow-inner bg-[#0a0a0a] border-[#ff2a2a]">
                         <div className="flex-1">
                             <p className="text-sm font-bold text-slate-900 dark:text-white uppercase leading-none">{itemToDelete?.tipo}</p>
-                            <p className="text-xl font-mono font-bold text-rose-600 tabular-nums">{formatCurrency(itemToDelete?.valor || 0)}</p>
+                            <p className="text-xl font-mono font-bold tabular-nums" style={{color:'#ff2a2a'}}>{formatCurrency(itemToDelete?.valor || 0)}</p>
                         </div>
                     </div>
                     <p className="text-xs text-slate-400 mb-6 italic">Atenção: Esta ação não pode ser desfeita.</p>

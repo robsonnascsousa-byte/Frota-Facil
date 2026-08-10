@@ -151,11 +151,11 @@ Este é um documento de simulação para o arquivo: ${documento.nome}
 
   const getStatusColor = (status: string) => {
     const colorClasses: { [key: string]: string } = {
-      'Paga': 'bg-green-500',
-      'Em aberto': 'bg-yellow-500',
-      'Atrasado': 'bg-red-500',
+      'Paga': 'bg-[rgba(245,241,234,0.10)] text-[#f5f1ea] ring-1 ring-[rgba(245,241,234,0.22)]',
+      'Em aberto': 'bg-transparent text-[#f5f1ea] ring-1 ring-[rgba(245,241,234,0.30)]',
+      'Atrasado': 'bg-[rgba(255,42,42,0.12)] text-[#ff2a2a] ring-1 ring-[rgba(255,42,42,0.35)]',
     };
-    return colorClasses[status] || 'bg-gray-500';
+    return colorClasses[status] || 'bg-[rgba(138,138,138,0.10)] text-[#8a8a8a] ring-1 ring-[rgba(138,138,138,0.20)]';
   }
 
   return (
@@ -223,7 +223,7 @@ Este é um documento de simulação para o arquivo: ${documento.nome}
             { header: 'Valor', accessor: 'valor', isCurrency: true },
             {
               header: 'Status', accessor: 'status', render: (manutencao) => (
-                <span className={`px-2.5 py-1 text-xs font-bold text-white rounded-full uppercase tracking-wider ${getStatusColor(manutencao.status)}`}>
+                <span className={`px-2.5 py-1 text-xs font-bold rounded-full uppercase tracking-wider ${getStatusColor(manutencao.status)}`}>
                   {manutencao.status}
                 </span>
               )
@@ -238,7 +238,7 @@ Este é um documento de simulação para o arquivo: ${documento.nome}
                       <button
                         key={doc.id}
                         onClick={() => handleDownload(item, doc)}
-                        className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-800/50 font-medium px-2 py-0.5 rounded-full truncate"
+                        className="text-xs bg-[rgba(245,241,234,0.08)] text-[#f5f1ea] hover:bg-[rgba(245,241,234,0.14)] font-medium px-2 py-0.5 rounded-full truncate"
                         title={`Baixar ${doc.nome}`}
                       >
                         {doc.nome}
@@ -257,21 +257,21 @@ Este é um documento de simulação para o arquivo: ${documento.nome}
                 <div className="flex items-center space-x-3">
                   <button
                     onClick={() => handleEditClick(manutencao)}
-                    className="text-petrol-blue-700 hover:text-petrol-blue-900 dark:text-petrol-blue-400 dark:hover:text-petrol-blue-300 font-medium text-sm"
+                    className="font-medium text-sm transition-colors" style={{ color: '#f5f1ea' }}
                     aria-label={`Editar manutenção ${manutencao.id}`}
                   >
                     Editar
                   </button>
                   <button
                     onClick={() => handleAnexarClick(manutencao.id)}
-                    className="text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 font-medium text-sm"
+                    className="font-medium text-sm transition-colors" style={{ color: '#8a8a8a' }}
                     aria-label={`Anexar documento para a manutenção ${manutencao.id}`}
                   >
                     Anexar
                   </button>
                   <button
                     onClick={() => handleDeleteClick(manutencao)}
-                    className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium text-sm"
+                    className="font-medium text-sm transition-colors" style={{ color: '#ff2a2a' }}
                     aria-label={`Excluir manutenção ${manutencao.id}`}
                   >
                     Excluir
@@ -329,7 +329,7 @@ Este é um documento de simulação para o arquivo: ${documento.nome}
                 <button
                   type="button"
                   onClick={() => setIsParcelado(false)}
-                  className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${!isParcelado ? 'bg-white dark:bg-slate-600 text-green-600 shadow-sm' : 'text-slate-500'}`}
+                  className={`flex-1 py-2 text-xs font-bold rounded-md transition-all ${!isParcelado ? 'bg-[#2a2a2a] text-[#f5f1ea] shadow-sm' : 'text-slate-500'}`}
                 >
                   À Vista
                 </button>

@@ -201,14 +201,14 @@ const Motoristas: React.FC<MotoristasProps> = ({ motoristas, onAddMotorista, onD
                 <div className="flex space-x-2">
                   <button
                     onClick={() => handleEditClick(motorista)}
-                    className="text-petrol-blue-600 hover:text-petrol-blue-800 dark:text-petrol-blue-400 dark:hover:text-petrol-blue-300 font-medium text-sm"
+                    className="font-medium text-sm transition-colors" style={{ color: '#f5f1ea' }}
                     aria-label={`Editar motorista ${motorista.nome}`}
                   >
                     Editar
                   </button>
                   <button
                     onClick={() => handleDeleteClick(motorista)}
-                    className="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 font-medium text-sm"
+                    className="font-medium text-sm transition-colors" style={{ color: '#ff2a2a' }}
                     aria-label={`Excluir motorista ${motorista.nome}`}
                   >
                     Excluir
