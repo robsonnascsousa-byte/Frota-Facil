@@ -211,4 +211,9 @@ ALTER FUNCTION public.create_user_policies(TEXT) SET search_path = 'public';
 REVOKE ALL ON FUNCTION public.create_user_policies(TEXT) FROM PUBLIC, anon, authenticated;
 ALTER FUNCTION public.update_updated_at_column() SET search_path = '';
 
+REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_user_role() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.registrar_venda_veiculo(INTEGER, NUMERIC, DATE, JSONB) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.set_profile_role(UUID, TEXT) TO authenticated;
+
 COMMIT;
