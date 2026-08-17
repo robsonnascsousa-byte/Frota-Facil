@@ -25,6 +25,8 @@ SET search_path = ''
 AS $$
     SELECT role FROM public.profiles WHERE id = auth.uid()
 $$;
+REVOKE ALL ON FUNCTION public.get_user_role() FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_user_role() TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER
@@ -63,6 +65,7 @@ BEGIN
     RETURN NEW;
 END;
 $$;
+REVOKE ALL ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authenticated;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
@@ -90,6 +93,7 @@ BEGIN
     RETURN NEW;
 END;
 $$;
+REVOKE ALL ON FUNCTION public.prevent_unauthorized_role_change() FROM PUBLIC, anon, authenticated;
 
 DROP TRIGGER IF EXISTS prevent_unauthorized_role_change ON public.profiles;
 CREATE TRIGGER prevent_unauthorized_role_change
@@ -115,7 +119,7 @@ BEGIN
     IF NOT FOUND THEN RAISE EXCEPTION 'Usuário não encontrado'; END IF;
 END;
 $$;
-REVOKE ALL ON FUNCTION public.set_profile_role(UUID, TEXT) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.set_profile_role(UUID, TEXT) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.set_profile_role(UUID, TEXT) TO authenticated;
 
 CREATE TABLE IF NOT EXISTS public.audit_logs (
@@ -177,6 +181,7 @@ BEGIN
     RETURN NULL;
 END;
 $$;
+REVOKE ALL ON FUNCTION public.log_audit_event() FROM PUBLIC, anon, authenticated;
 
 DO $$
 DECLARE
@@ -195,5 +200,15 @@ BEGIN
     END LOOP;
 END;
 $$;
+
+-- O cliente público é usado apenas para autenticação; dados exigem sessão.
+REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM anon;
+REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM anon;
+
+-- Funções legadas: restringe execução e impede resolução de objetos controlada
+-- pelo chamador. A função de criação de políticas é somente administrativa.
+ALTER FUNCTION public.create_user_policies(TEXT) SET search_path = 'public';
+REVOKE ALL ON FUNCTION public.create_user_policies(TEXT) FROM PUBLIC, anon, authenticated;
+ALTER FUNCTION public.update_updated_at_column() SET search_path = '';
 
 COMMIT;
