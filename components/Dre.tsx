@@ -55,7 +55,10 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
             return false;
         };
 
-        // 1. Receita Bruta (Contratos + Receitas Manuais)
+        // 1. Receita Bruta OPERACIONAL — só aluguel. Venda de veículo é
+        //    desmobilização de ativo, não faturamento: entra no resultado
+        //    não-operacional (abaixo), fora da receita e das margens.
+        const ehVendaDeAtivo = (tipo?: string) => (tipo || '').includes('Venda de Veículo');
         let receitaBruta = 0;
         contratos.forEach(c => {
             if (selectedVeiculoId !== 'all' && c.veiculo_id !== selectedVeiculoId) return;
@@ -63,33 +66,53 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
                 if (p.status === 'Pago' && isPeriodMatch(p.vencimento)) receitaBruta += p.valor;
             });
         });
+        let resultadoNaoOperacional = 0; // venda de ativos
         receitasManuais.forEach(r => {
-            if (r.status === 'Pago' && isPeriodMatch(r.data) && isVeiculoMatch(r.veiculo_id, r.veiculo_placa)) receitaBruta += r.valor;
+            if (r.status !== 'Pago' || !isPeriodMatch(r.data) || !isVeiculoMatch(r.veiculo_id, r.veiculo_placa)) return;
+            if (ehVendaDeAtivo(r.tipo)) resultadoNaoOperacional += r.valor;
+            else receitaBruta += r.valor; // outras receitas avulsas seguem operacionais
         });
 
         // 1.1 Impostos e Deduções (Zerado conforme solicitação - será lançado manualmente)
         const impostosDeducoes = 0;
         const receitaLiquida = receitaBruta - impostosDeducoes;
 
-        // 2. Custo dos Serviços Prestados (CSP) - Custos diretos da frota
+        // 2. Classificação de despesas por grupo do DRE. A lista anterior só
+        //    reconhecia 4 tipos e descartava o resto em silêncio (contabilidade,
+        //    INSS, Simples, licenciamento, combustível sumiam do resultado).
+        //    Agora todo tipo cai em algum grupo; o que não for CSP nem financeiro
+        //    conta como despesa operacional — nada some.
+        const CSP_TIPOS = ['Seguro', 'IPVA', 'Documentação', 'Licenciamento', 'Manutenção', 'Combustível', 'Lavagem', 'Estacionamento', 'Pneus', 'Rastreador'];
+        const FIN_TIPOS = ['Financiamento', 'Juros'];
+        const grupoDespesa = (tipo: string): 'csp' | 'financeiro' | 'adm' | 'naoClassificado' => {
+            if (CSP_TIPOS.includes(tipo)) return 'csp';
+            if (FIN_TIPOS.includes(tipo)) return 'financeiro';
+            if (['Contabilidade', 'Impostos', 'Salários', 'Marketing', 'Aluguel', 'Outros'].includes(tipo)) return 'adm';
+            return 'naoClassificado';
+        };
+
+        // Manutenções (tabela própria) são sempre custo direto da frota
         let custosManutencao = 0;
         manutencoes.forEach(m => {
             if (isPeriodMatch(m.data) && isVeiculoMatch(m.veiculo_id, m.veiculo_placa)) custosManutencao += m.valor;
         });
 
-        let custosFrotaFixos = 0; // Seguros, IPVA, Docs
+        let custosFrotaFixos = 0;      // CSP vindo de despesas (seguro, IPVA, docs…)
+        let despesasAdm = 0;           // administrativas e gerais
+        let despesasFinanceiras = 0;   // juros de financiamento
+        let despesasNaoClassificadas = 0; // tipos fora do mapa — contam como adm, mas ficam visíveis
         despesas.forEach(d => {
-            if (isPeriodMatch(d.data) && ['Seguro', 'IPVA', 'Documentação', 'Manutenção'].includes(d.tipo) && isVeiculoMatch(d.veiculo_id, d.veiculo_placa)) custosFrotaFixos += d.valor;
+            if (!isPeriodMatch(d.data) || !isVeiculoMatch(d.veiculo_id, d.veiculo_placa)) return;
+            switch (grupoDespesa(d.tipo)) {
+                case 'csp': custosFrotaFixos += d.valor; break;
+                case 'financeiro': despesasFinanceiras += d.valor; break;
+                case 'adm': despesasAdm += d.valor; break;
+                default: despesasNaoClassificadas += d.valor; despesasAdm += d.valor; break;
+            }
         });
 
         const totalCSP = custosManutencao + custosFrotaFixos;
         const resultadoBruto = receitaLiquida - totalCSP;
-
-        // 3. Despesas Operacionais (Administrativas e Gerais)
-        let despesasAdm = 0;
-        despesas.forEach(d => {
-            if (isPeriodMatch(d.data) && d.tipo === 'Outros' && isVeiculoMatch(d.veiculo_id, d.veiculo_placa)) despesasAdm += d.valor;
-        });
 
         let multasDespesas = 0;
         multas.forEach(m => {
@@ -98,19 +121,14 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
 
         const totalDespesasOp = despesasAdm + multasDespesas;
 
-        // 4. EBITDA (Earning Before Interest, Taxes, Depreciation and Amortization)
-        // No nosso caso aqui, os "Taxes" são Provisão de IR/CSLL sobre o lucro, 
-        // mas já descontamos impostos sobre a nota na Receita Líquida.
+        // 4. EBITDA (antes de juros; ainda sem depreciação — ver relatório)
         const ebitda = resultadoBruto - totalDespesasOp;
 
-        // 5. Resultado Financeiro (Juros de Financiamento)
-        let despesasFinanceiras = 0;
-        despesas.forEach(d => {
-            if (isPeriodMatch(d.data) && d.tipo === 'Financiamento' && isVeiculoMatch(d.veiculo_id, d.veiculo_placa)) despesasFinanceiras += d.valor;
-        });
+        // 5. Resultado operacional (depois dos juros de financiamento)
+        const resultadoOperacional = ebitda - despesasFinanceiras;
 
-        // 6. Lucro Líquido Final
-        const lucroLiquido = ebitda - despesasFinanceiras;
+        // 6. Resultado líquido = operacional + não-operacional (venda de ativos)
+        const lucroLiquido = resultadoOperacional + resultadoNaoOperacional;
 
         return {
             receitaBruta,
@@ -121,11 +139,15 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
             totalCSP,
             resultadoBruto,
             despesasAdm,
+            despesasNaoClassificadas,
             multasDespesas,
             totalDespesasOp,
             ebitda,
             despesasFinanceiras,
+            resultadoOperacional,
+            resultadoNaoOperacional,
             lucroLiquido,
+            // Margens sobre a receita operacional (aluguel), agora sem a venda de carro distorcendo
             ebitdaMargin: receitaBruta > 0 ? (ebitda / receitaBruta) * 100 : 0,
             lucroMargin: receitaBruta > 0 ? (lucroLiquido / receitaBruta) * 100 : 0
         };
@@ -468,6 +490,44 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
                                             <td className="text-right py-4 px-4 text-slate-400 tabular-nums">
                                                 {currentDRE.receitaBruta > 0 ? ((currentDRE.despesasFinanceiras / currentDRE.receitaBruta) * 100).toFixed(1) : 0}%
                                             </td>
+                                        </>
+                                    )}
+                                </tr>
+
+                                {/* 6.1 RESULTADO OPERACIONAL (subtotal, antes do não-operacional) */}
+                                <tr className="bg-slate-100 dark:bg-slate-900 font-bold border-y border-slate-200 dark:border-slate-700">
+                                    <td className="py-4 px-4 text-slate-800 dark:text-white sticky left-0 bg-slate-100 dark:bg-slate-950 z-10 border-r border-slate-200 dark:border-slate-800">
+                                        (=) RESULTADO OPERACIONAL
+                                    </td>
+                                    {viewMode === 'comparative' ? (
+                                        <>
+                                            {monthlyBreakdown.map((m, i) => <td key={i} className="text-right py-4 px-4 tabular-nums">{formatCurrency(m.resultadoOperacional)}</td>)}
+                                            <td className="text-right py-4 px-4 font-black tabular-nums">{formatCurrency(currentDRE.resultadoOperacional)}</td>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <td className="text-right py-4 px-4 text-slate-900 dark:text-white tabular-nums">{formatCurrency(currentDRE.resultadoOperacional)}</td>
+                                            <td className="text-right py-4 px-4 text-slate-400 tabular-nums">
+                                                {currentDRE.receitaBruta > 0 ? ((currentDRE.resultadoOperacional / currentDRE.receitaBruta) * 100).toFixed(1) : 0}%
+                                            </td>
+                                        </>
+                                    )}
+                                </tr>
+
+                                {/* 6.2 RESULTADO NÃO-OPERACIONAL (venda de ativos) */}
+                                <tr className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                    <td className="py-4 px-4 font-semibold text-slate-600 dark:text-slate-400 sticky left-0 bg-white dark:bg-slate-900 z-10 border-r border-slate-50 dark:border-slate-700">
+                                        (+/-) RESULTADO NÃO-OPERACIONAL (VENDA DE ATIVOS)
+                                    </td>
+                                    {viewMode === 'comparative' ? (
+                                        <>
+                                            {monthlyBreakdown.map((m, i) => <td key={i} className="text-right py-4 px-4 tabular-nums">{formatCurrency(m.resultadoNaoOperacional)}</td>)}
+                                            <td className="text-right py-4 px-4 font-bold bg-slate-50 dark:bg-slate-900/50 tabular-nums">{formatCurrency(currentDRE.resultadoNaoOperacional)}</td>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <td className="text-right py-4 px-4 tabular-nums">{formatCurrency(currentDRE.resultadoNaoOperacional)}</td>
+                                            <td className="text-right py-4 px-4 text-slate-400 tabular-nums">—</td>
                                         </>
                                     )}
                                 </tr>
