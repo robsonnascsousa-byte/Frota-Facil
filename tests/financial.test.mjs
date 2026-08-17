@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   addMonthsClamped,
   calculateFleetReturn,
+  calculateHistoricalCostFleetReturn,
   classifyDreExpenseCategory,
   consolidateAssetSales,
   getBaseCategory,
@@ -88,6 +89,35 @@ test('não cria retorno fictício ao vender veículo pelo custo', () => {
   });
   assert.equal(retorno.result, 0);
   assert.equal(retorno.returnRate, 0);
+});
+
+test('ignora valor potencial enquanto o veículo permanece na frota', () => {
+  const retorno = calculateHistoricalCostFleetReturn({
+    assets: [{
+      status: 'Disponível',
+      acquisitionCost: 100_000,
+      marketValue: 140_000,
+    }],
+    operatingResult: 12_000,
+  });
+  assert.equal(retorno.result, 12_000);
+  assert.equal(retorno.returnRate, 0.12);
+});
+
+test('reconhece ganho ou perda de capital somente após a venda', () => {
+  const ganho = calculateHistoricalCostFleetReturn({
+    assets: [{ status: 'Vendido', acquisitionCost: 100_000, saleValue: 115_000 }],
+    operatingResult: 5_000,
+  });
+  assert.equal(ganho.result, 20_000);
+  assert.equal(ganho.returnRate, 0.2);
+
+  const perda = calculateHistoricalCostFleetReturn({
+    assets: [{ status: 'Vendido', acquisitionCost: 100_000, saleValue: 90_000 }],
+    operatingResult: 0,
+  });
+  assert.equal(perda.result, -10_000);
+  assert.equal(perda.returnRate, -0.1);
 });
 
 test('não calcula retorno quando não existe base de investimento', () => {

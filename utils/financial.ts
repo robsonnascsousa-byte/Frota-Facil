@@ -193,6 +193,18 @@ export interface FleetReturnResult {
     returnRate: number | null;
 }
 
+export interface FleetAssetForReturn {
+    status: string;
+    acquisitionCost: number;
+    saleValue?: number | null;
+    marketValue?: number | null;
+}
+
+export interface HistoricalCostFleetReturnInput {
+    assets: FleetAssetForReturn[];
+    operatingResult: number;
+}
+
 export const calculateFleetReturn = ({
     acquisitionCost,
     currentFleetValue,
@@ -203,4 +215,26 @@ export const calculateFleetReturn = ({
         result,
         returnRate: acquisitionCost > 0 ? result / acquisitionCost : null,
     };
+};
+
+export const calculateHistoricalCostFleetReturn = ({
+    assets,
+    operatingResult,
+}: HistoricalCostFleetReturnInput): FleetReturnResult => {
+    const acquisitionCost = assets.reduce(
+        (total, asset) => total + (asset.acquisitionCost || 0),
+        0,
+    );
+    const recognizedAssetValue = assets.reduce((total, asset) => {
+        if (asset.status === 'Vendido') return total + (asset.saleValue || 0);
+        // Enquanto o ativo não é vendido, a estimativa de mercado permanece
+        // informativa e o cálculo conserva o custo histórico.
+        return total + (asset.acquisitionCost || 0);
+    }, 0);
+
+    return calculateFleetReturn({
+        acquisitionCost,
+        currentFleetValue: recognizedAssetValue,
+        operatingResult,
+    });
 };

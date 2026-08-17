@@ -5,7 +5,7 @@ import { Card, Header } from './ui';
 import FleetStrip from './FleetStrip';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import {
-    calculateFleetReturn,
+    calculateHistoricalCostFleetReturn,
     getCashAmount,
     getCashDate,
     getCompetenceDate,
@@ -128,12 +128,6 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
         .reduce((sum, p) => sum + p.valor, 0);
 
     const { retornoAcumulado, resultadoAcumulado } = useMemo(() => {
-        const totalInvestimento = veiculos.reduce((sum, v) => sum + (v.valor_compra || 0), 0);
-        const valorAtualFrota = veiculos.reduce((sum, v) => {
-            if (v.status === 'Vendido') return sum + (v.valor_venda || 0);
-            return sum + (v.valor_fipe || v.valor_compra || 0);
-        }, 0);
-
         const receitaContratos = contratos.flatMap(c => c.pagamentos || [])
             .filter(p => isRecognizedByCutoff(getCompetenceDate(p).date))
             .reduce((sum, p) => sum + p.valor, 0);
@@ -158,9 +152,13 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
 
         const resultadoOperacional = (receitaContratos + receitaManual)
             - (custosManuais + custosManutencao + custosMultas);
-        const retorno = calculateFleetReturn({
-            acquisitionCost: totalInvestimento,
-            currentFleetValue: valorAtualFrota,
+        const retorno = calculateHistoricalCostFleetReturn({
+            assets: veiculos.map(v => ({
+                status: v.status,
+                acquisitionCost: v.valor_compra || 0,
+                saleValue: v.valor_venda || 0,
+                marketValue: v.valor_fipe || 0,
+            })),
             operatingResult: resultadoOperacional,
         });
 
@@ -445,8 +443,8 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <Card title="Receita do Mês" value={formatCurrency(receitaMes)} description="Receita confirmada" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v.01" /></svg>} />
                 <Card title="Inadimplência" value={formatCurrency(inadimplencia)} description="Valor em aberto" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>} tone={inadimplencia > 0 ? "alert" : "neutral"} />
-                <Card title="Retorno acumulado da frota" value={retornoAcumulado === null ? 'N/D' : `${retornoAcumulado.toFixed(1)}%`} description="Resultado gerencial ÷ custo de aquisição, sem anualização" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>} />
-                <Card title="Resultado acumulado da frota" value={formatCurrency(resultadoAcumulado)} description="Operação + valor atual/realizado − aquisições" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
+                <Card title="Retorno acumulado da frota" value={retornoAcumulado === null ? 'N/D' : `${retornoAcumulado.toFixed(1)}%`} description="Resultado pelo custo histórico ÷ aquisições, sem anualização" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>} />
+                <Card title="Resultado acumulado da frota" value={formatCurrency(resultadoAcumulado)} description="Operação + ganho/perda realizados nas vendas" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
             </div>
 
             {/* Charts Row 1 */}

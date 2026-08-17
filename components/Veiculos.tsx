@@ -8,7 +8,7 @@ import { exportToExcel, prepareVeiculosForExport } from '../utils/export';
 import FipeLookup from './FipeLookup';
 import { FipeValor, parseValorFipe } from '../services/fipe';
 import { uploadVehiclePhoto } from '../services/storage';
-import { getCompetenceDate, isAssetSale, isFinancingPrincipal, isRecognizedByCutoff, isUnsplitFinancing } from '../utils/financial';
+import { calculateHistoricalCostFleetReturn, getCompetenceDate, isAssetSale, isFinancingPrincipal, isRecognizedByCutoff, isUnsplitFinancing } from '../utils/financial';
 
 interface SaleConfig {
     tipo: 'avista' | 'parcelado';
@@ -73,6 +73,7 @@ interface FinancialData {
     custoOutros: number;
     totalCustos: number;
     lucroOperacional: number;
+    valorVendaRealizado: number;
     rentabilidadeReal: number;
     rentabilidadePercentual: number;
 }
@@ -177,7 +178,7 @@ const VeiculoCard: React.FC<{
 
                     {/* Profitability Summary */}
                     <div className="border-t border-white/20 pt-2 flex justify-between items-center">
-                        <span className="text-xs text-slate-300">Lucro Real:</span>
+                        <span className="text-xs text-slate-300">Resultado acumulado:</span>
                         <div className="flex flex-col items-end">
                             <span className={`text-sm font-bold ${profitColor}`}>
                                 {formatCurrency(financeiro.rentabilidadeReal)}
@@ -300,18 +301,19 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
             const totalCustos = custoManutencao + custoMultas + custoSinistros + custoOutros;
             const lucroOperacional = receitaTotal - totalCustos;
 
-            // Exit value: for sold vehicles use committed sale value (from receitas), for others use FIPE
-            let valorFinal: number;
-            if (v.status === 'Vendido' && receitaVendaTotal > 0) {
-                valorFinal = receitaVendaTotal; // committed sale value from receitas
-            } else if (v.valor_venda && v.valor_venda > 0) {
-                valorFinal = v.valor_venda;
-            } else {
-                valorFinal = v.valor_fipe;
-            }
-
-            // Real Profitability: (Operating Revenue + Exit Value) - (Purchase + Costs)
-            const rentabilidadeReal = (receitaTotal + valorFinal) - (v.valor_compra + totalCustos);
+            const valorVendaRealizado = receitaVendaTotal > 0
+                ? receitaVendaTotal
+                : (v.valor_venda || 0);
+            const retornoHistorico = calculateHistoricalCostFleetReturn({
+                assets: [{
+                    status: v.status,
+                acquisitionCost: v.valor_compra || 0,
+                saleValue: valorVendaRealizado,
+                marketValue: v.valor_fipe || 0,
+                }],
+                operatingResult: lucroOperacional,
+            });
+            const rentabilidadeReal = retornoHistorico.result;
             const investimentoTotal = v.valor_compra + totalCustos;
             const rentabilidadePercentual = investimentoTotal > 0 ? (rentabilidadeReal / investimentoTotal) * 100 : 0;
 
@@ -323,6 +325,7 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
                 custoOutros,
                 totalCustos,
                 lucroOperacional,
+                valorVendaRealizado,
                 rentabilidadeReal,
                 rentabilidadePercentual
             };
@@ -630,6 +633,7 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
                                 custoOutros: 0,
                                 totalCustos: 0,
                                 lucroOperacional: 0,
+                                valorVendaRealizado: 0,
                                 rentabilidadeReal: 0,
                                 rentabilidadePercentual: 0
                             }}
@@ -981,21 +985,23 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
                                 </div>
                                 <div className="flex justify-between items-center mb-2">
                                     <span className="text-sm text-slate-500 dark:text-slate-400">
-                                        {(selectedVehicle.valor_venda && selectedVehicle.valor_venda > 0) ? 'Valor de Venda (Realizado)' : 'Valor Atual (FIPE)'}
+                                        {selectedVehicle.status === 'Vendido' ? 'Valor de Venda (Realizado)' : 'Valor Atual (FIPE — informativo)'}
                                     </span>
                                     <span className="font-mono" style={{color:'#f5f1ea'}}>
-                                        +{formatCurrency((selectedVehicle.valor_venda && selectedVehicle.valor_venda > 0) ? selectedVehicle.valor_venda : selectedVehicle.valor_fipe)}
+                                        +{formatCurrency(selectedVehicle.status === 'Vendido'
+                                            ? (financials[selectedVehicle.id]?.valorVendaRealizado || selectedVehicle.valor_venda || 0)
+                                            : selectedVehicle.valor_fipe)}
                                     </span>
                                 </div>
                                 <div className="flex justify-between items-center mb-2">
-                                    <span className="text-sm text-slate-500 dark:text-slate-400">Depreciação/Valorização</span>
-                                    <span className={`font-mono ${((selectedVehicle.valor_venda && selectedVehicle.valor_venda > 0) ? selectedVehicle.valor_venda : selectedVehicle.valor_fipe) >= selectedVehicle.valor_compra ? 'text-[#f5f1ea]' : 'text-[#ff2a2a]'}`}>
-                                        {formatCurrency(((selectedVehicle.valor_venda && selectedVehicle.valor_venda > 0) ? selectedVehicle.valor_venda : selectedVehicle.valor_fipe) - selectedVehicle.valor_compra)}
+                                    <span className="text-sm text-slate-500 dark:text-slate-400">{selectedVehicle.status === 'Vendido' ? 'Ganho/perda na venda' : 'Variação potencial (não realizada)'}</span>
+                                    <span className={`font-mono ${(selectedVehicle.status === 'Vendido' ? (financials[selectedVehicle.id]?.valorVendaRealizado || selectedVehicle.valor_venda || 0) : selectedVehicle.valor_fipe) >= selectedVehicle.valor_compra ? 'text-[#f5f1ea]' : 'text-[#ff2a2a]'}`}>
+                                        {formatCurrency((selectedVehicle.status === 'Vendido' ? (financials[selectedVehicle.id]?.valorVendaRealizado || selectedVehicle.valor_venda || 0) : selectedVehicle.valor_fipe) - selectedVehicle.valor_compra)}
                                     </span>
                                 </div>
                                 <div className="border-t border-slate-200 dark:border-slate-600 my-2"></div>
                                 <div className="flex justify-between items-center">
-                                    <span className="font-bold text-slate-800 dark:text-white">{selectedVehicle.status === 'Vendido' ? 'Resultado da Venda' : 'Resultado Final (Se vendesse hoje)'}</span>
+                                    <span className="font-bold text-slate-800 dark:text-white">{selectedVehicle.status === 'Vendido' ? 'Resultado acumulado após venda' : 'Resultado acumulado (custo histórico)'}</span>
                                     <span className={`text-lg font-bold ${financials[selectedVehicle.id]?.rentabilidadeReal >= 0 ? 'text-[#f5f1ea]' : 'text-[#ff2a2a]'}`}>
                                         {formatCurrency(financials[selectedVehicle.id]?.rentabilidadeReal || 0)}
                                     </span>
