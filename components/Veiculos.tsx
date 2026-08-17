@@ -8,6 +8,7 @@ import { exportToExcel, prepareVeiculosForExport } from '../utils/export';
 import FipeLookup from './FipeLookup';
 import { FipeValor, parseValorFipe } from '../services/fipe';
 import { uploadVehiclePhoto } from '../services/storage';
+import { getCompetenceDate, isAssetSale, isFinancingPrincipal, isRecognizedByCutoff, isUnsplitFinancing } from '../utils/financial';
 
 interface SaleConfig {
     tipo: 'avista' | 'parcelado';
@@ -25,7 +26,7 @@ interface VeiculosProps {
     receitas: Receita[];
     onAddVeiculo: (veiculo: Omit<Veiculo, 'id' | 'codigo'>) => void;
     onDeleteVeiculo: (id: number) => void;
-    onUpdateVeiculo: (veiculo: Veiculo, saleConfig?: SaleConfig) => void;
+    onUpdateVeiculo: (veiculo: Veiculo, saleConfig?: SaleConfig) => Promise<void>;
 }
 
 interface VeiculoFormState {
@@ -252,19 +253,24 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
             // Revenue from contracts (operating)
             const vehicleContracts = contratos.filter(c => c.veiculo_id === v.id);
             const receitaContratos = vehicleContracts.reduce((sum, c) => {
-                const paid = c.pagamentos?.filter(p => p.status === 'Pago') || [];
-                return sum + paid.reduce((sub, p) => sub + (p.valor || 0), 0);
+                return sum + (c.pagamentos || [])
+                    .filter(p => isRecognizedByCutoff(getCompetenceDate(p).date))
+                    .reduce((sub, p) => sub + (p.valor || 0), 0);
             }, 0);
 
             // Revenue from vehicle sale (receitas tagged as sale)
             const receitaVendaPaga = receitas
-                .filter(r => r.veiculo_placa === v.placa && r.tipo.includes('Venda de Veículo') && r.status === 'Pago')
+                .filter(r => (r.veiculo_id === v.id || r.veiculo_placa === v.placa) && isAssetSale(r.tipo, r.origem) && r.status === 'Pago')
                 .reduce((sum, r) => sum + r.valor, 0);
             const receitaVendaTotal = receitas
-                .filter(r => r.veiculo_placa === v.placa && r.tipo.includes('Venda de Veículo'))
+                .filter(r => (r.veiculo_id === v.id || r.veiculo_placa === v.placa) && isAssetSale(r.tipo, r.origem))
                 .reduce((sum, r) => sum + r.valor, 0);
 
-            const receitaTotal = receitaContratos;
+            const receitasOperacionaisManuais = receitas
+                .filter(r => (r.veiculo_id === v.id || r.veiculo_placa === v.placa) && !isAssetSale(r.tipo, r.origem))
+                .filter(r => isRecognizedByCutoff(getCompetenceDate(r).date))
+                .reduce((sum, r) => sum + r.valor, 0);
+            const receitaTotal = receitaContratos + receitasOperacionaisManuais;
 
             // Costs
             // O campo é veiculo_placa (snake_case, como vem do banco). Escrito
@@ -272,10 +278,12 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
             // manutenção e multa ficava fora do custo, inflando a rentabilidade.
             const custoManutencao = manutencoes
                 .filter(m => m.veiculo_placa === v.placa)
+                .filter(m => isRecognizedByCutoff(getCompetenceDate(m).date))
                 .reduce((sum, m) => sum + (m.valor || 0), 0);
 
             const custoMultas = multas
                 .filter(m => m.veiculo_placa === v.placa)
+                .filter(m => isRecognizedByCutoff(getCompetenceDate(m).date))
                 .reduce((sum, m) => sum + (m.valor || 0), 0);
 
             const custoSinistros = (sinistros || [])
@@ -283,7 +291,10 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
                 .reduce((sum, s) => sum + (s.valor || 0), 0);
 
             const custoOutros = despesas
-                .filter(d => d.veiculo_placa === v.placa)
+                .filter(d => (d.veiculo_id === v.id || d.veiculo_placa === v.placa)
+                    && !isFinancingPrincipal(d.tipo)
+                    && !isUnsplitFinancing(d.tipo))
+                .filter(d => isRecognizedByCutoff(getCompetenceDate(d).date))
                 .reduce((sum, d) => sum + (d.valor || 0), 0);
 
             const totalCustos = custoManutencao + custoMultas + custoSinistros + custoOutros;
@@ -484,9 +495,9 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
 
             // Pass sale config if selling
             if (formattedVehicle.status === 'Vendido' && formattedVehicle.valor_venda > 0) {
-                onUpdateVeiculo(formattedVehicle, saleConfig);
+                await onUpdateVeiculo(formattedVehicle, saleConfig);
             } else {
-                onUpdateVeiculo(formattedVehicle);
+                await onUpdateVeiculo(formattedVehicle);
             }
             setIsEditModalOpen(false);
             setEditingVehicle(null);
@@ -939,12 +950,12 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
                                 <svg className="w-5 h-5 text-petrol-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
-                                Rentabilidade Real
+                                Rentabilidade gerencial por competência
                             </h4>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                 <div className="p-3 rounded-lg" style={{background:'rgba(245,241,234,0.05)', border:'1px solid rgba(245,241,234,0.12)'}}>
-                                    <p className="text-xs font-medium uppercase" style={{color:'#8a8a8a'}}>Receita Total</p>
+                                    <p className="text-xs font-medium uppercase" style={{color:'#8a8a8a'}}>Receita operacional</p>
                                     <p className="text-xl font-bold" style={{color:'#f5f1ea'}}>
                                         {formatCurrency(financials[selectedVehicle.id]?.receitaTotal || 0)}
                                     </p>
@@ -956,7 +967,7 @@ const Veiculos: React.FC<VeiculosProps> = ({ veiculos, contratos, manutencoes, m
                                     </p>
                                 </div>
                                 <div className="p-3 rounded-lg" style={{background:'rgba(245,241,234,0.05)', border:'1px solid rgba(245,241,234,0.12)'}}>
-                                    <p className="text-xs font-medium uppercase" style={{color:'#8a8a8a'}}>Lucro Líquido</p>
+                                    <p className="text-xs font-medium uppercase" style={{color:'#8a8a8a'}}>Resultado operacional</p>
                                     <p className="text-xl font-bold" style={{color:'#f5f1ea'}}>
                                         {formatCurrency(financials[selectedVehicle.id]?.lucroOperacional || 0)}
                                     </p>

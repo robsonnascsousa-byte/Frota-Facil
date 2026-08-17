@@ -6,6 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "check:migrations": "node scripts/check-migrations.mjs",
+    "check:migrations:new": "node scripts/check-migrations.mjs --new-only",
+    "test": "node --experimental-strip-types --test --test-isolation=none tests/*.test.mjs",
+    "typecheck": "tsc --noEmit",
     "preview": "vite preview"
   },
   "dependencies": {

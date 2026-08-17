@@ -4,6 +4,18 @@ import { Veiculo, Contrato, Documento, Despesa, Manutencao, Receita, Multa, esta
 import { Card, Header } from './ui';
 import FleetStrip from './FleetStrip';
 import { formatCurrency, formatDate } from '../utils/formatters';
+import {
+    calculateFleetReturn,
+    getCashAmount,
+    getCashDate,
+    getCompetenceDate,
+    getDueDate,
+    isAssetSale,
+    isFinancingPrincipal,
+    isPeriodMatch,
+    isRecognizedByCutoff,
+    isUnsplitFinancing,
+} from '../utils/financial';
 
 interface DashboardProps {
     veiculos: Veiculo[];
@@ -88,18 +100,24 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
     const locados = veiculosOperacionais.filter(v => v.status === 'Locado').length;
     const taxaOcupacao = totalVeiculos > 0 ? (locados / totalVeiculos * 100).toFixed(1) : 0;
 
-    const receitaMes = contratos.flatMap(c => c.pagamentos || [])
-        .filter(p => p.status === 'Pago' && new Date(p.vencimento).getUTCMonth() === new Date().getUTCMonth() && new Date(p.vencimento).getUTCFullYear() === new Date().getUTCFullYear())
-        .reduce((sum, p) => sum + p.valor, 0);
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1;
+    const receitaMes = [
+        ...contratos.flatMap(c => c.pagamentos || []),
+        ...receitas,
+    ]
+        .filter(item => isPeriodMatch(getCashDate(item).date, currentYear, currentMonth))
+        .reduce((sum, item) => sum + getCashAmount(item), 0);
 
     const custosMes = useMemo(() => {
         const custosManuais = despesas
-            .filter(d => d.status === 'Paga' && new Date(d.data).getUTCMonth() === new Date().getUTCMonth() && new Date(d.data).getUTCFullYear() === new Date().getUTCFullYear())
-            .reduce((sum, d) => sum + d.valor, 0);
+            .filter(d => isPeriodMatch(getCashDate(d).date, currentYear, currentMonth))
+            .reduce((sum, d) => sum + getCashAmount(d), 0);
 
         const custosManutencao = manutencoes
-            .filter(m => m.status === 'Paga' && new Date(m.data).getUTCMonth() === new Date().getUTCMonth() && new Date(m.data).getUTCFullYear() === new Date().getUTCFullYear())
-            .reduce((sum, m) => sum + m.valor, 0);
+            .filter(m => isPeriodMatch(getCashDate(m).date, currentYear, currentMonth))
+            .reduce((sum, m) => sum + getCashAmount(m), 0);
 
         return custosManuais + custosManutencao;
     }, [despesas, manutencoes]);
@@ -109,57 +127,46 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
         .filter(p => p.status === 'Atrasado')
         .reduce((sum, p) => sum + p.valor, 0);
 
-    const { roi, roe, roiAnual, roeAnual, mesesOperacao } = useMemo(() => {
+    const { retornoAcumulado, resultadoAcumulado } = useMemo(() => {
         const totalInvestimento = veiculos.reduce((sum, v) => sum + (v.valor_compra || 0), 0);
-        const totalPatrimonio = veiculos.reduce((sum, v) => {
-            if (v.status === 'Vendido') return sum + (v.valor_venda || 0); // patrimônio realizado
-            return sum + (v.valor_fipe || 0); // patrimônio atual
+        const valorAtualFrota = veiculos.reduce((sum, v) => {
+            if (v.status === 'Vendido') return sum + (v.valor_venda || 0);
+            return sum + (v.valor_fipe || v.valor_compra || 0);
         }, 0);
 
         const receitaContratos = contratos.flatMap(c => c.pagamentos || [])
-            .filter(p => p.status === 'Pago')
+            .filter(p => isRecognizedByCutoff(getCompetenceDate(p).date))
             .reduce((sum, p) => sum + p.valor, 0);
 
         const receitaManual = receitas
-            .filter(r => r.status === 'Pago')
+            .filter(r => !isAssetSale(r.tipo, r.origem))
+            .filter(r => isRecognizedByCutoff(getCompetenceDate(r).date))
             .reduce((sum, r) => sum + r.valor, 0);
 
         const custosManuais = despesas
-            .filter(d => d.status === 'Paga')
+            .filter(d => !isFinancingPrincipal(d.tipo) && !isUnsplitFinancing(d.tipo))
+            .filter(d => isRecognizedByCutoff(getCompetenceDate(d).date))
             .reduce((sum, d) => sum + d.valor, 0);
 
         const custosManutencao = manutencoes
-            .filter(m => m.status === 'Paga')
+            .filter(m => isRecognizedByCutoff(getCompetenceDate(m).date))
             .reduce((sum, m) => sum + m.valor, 0);
 
         const custosMultas = multas
-            .filter(m => m.status === 'Paga')
+            .filter(m => isRecognizedByCutoff(getCompetenceDate(m).date))
             .reduce((sum, m) => sum + m.valor, 0);
 
-        const lucro = (receitaContratos + receitaManual) - (custosManuais + custosManutencao + custosMultas);
-
-        // ROI/ROE aqui são ACUMULADOS (lucro de toda a operação ÷ capital hoje).
-        // Sem anualizar, o número parece taxa anual mas embute meses de operação.
-        // Anualizamos para virar comparável a CDI/Selic. Meses = do primeiro
-        // pagamento recebido até hoje.
-        const datasPagamento = contratos.flatMap(c => c.pagamentos || [])
-            .filter(p => p.status === 'Pago')
-            .map(p => new Date(p.vencimento).getTime())
-            .filter(t => !isNaN(t));
-        const inicio = datasPagamento.length ? Math.min(...datasPagamento) : Date.now();
-        const mesesOperacao = Math.max(1, (Date.now() - inicio) / (1000 * 60 * 60 * 24 * 30.44));
-
-        const roiAcum = totalInvestimento > 0 ? lucro / totalInvestimento : 0;
-        const roeAcum = totalPatrimonio > 0 ? lucro / totalPatrimonio : 0;
-        // Anualização composta: (1 + retorno_no_periodo)^(12/meses) − 1.
-        const anualizar = (r: number) => (Math.pow(1 + r, 12 / mesesOperacao) - 1) * 100;
+        const resultadoOperacional = (receitaContratos + receitaManual)
+            - (custosManuais + custosManutencao + custosMultas);
+        const retorno = calculateFleetReturn({
+            acquisitionCost: totalInvestimento,
+            currentFleetValue: valorAtualFrota,
+            operatingResult: resultadoOperacional,
+        });
 
         return {
-            roi: roiAcum * 100,
-            roe: roeAcum * 100,
-            roiAnual: roiAcum > -1 ? anualizar(roiAcum) : roiAcum * 100,
-            roeAnual: roeAcum > -1 ? anualizar(roeAcum) : roeAcum * 100,
-            mesesOperacao,
+            retornoAcumulado: retorno.returnRate === null ? null : retorno.returnRate * 100,
+            resultadoAcumulado: retorno.result,
         };
     }, [veiculos, contratos, receitas, despesas, manutencoes, multas]);
 
@@ -172,27 +179,17 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
             // --- Receitas ---
             // Realizada: pagamentos de contratos com status 'Pago' + receitas manuais com status 'Pago'
             const receitaContratosRealizada = contratos.flatMap(c => c.pagamentos || [])
-                .filter(p => {
-                    const parts = p.vencimento.split('-');
-                    const pYear = parseInt(parts[0]);
-                    const pMonth = parseInt(parts[1]);
-                    return p.status === 'Pago' && pMonth === month && pYear === currentYear;
-                })
-                .reduce((sum, p) => sum + p.valor, 0);
+                .filter(p => isPeriodMatch(getCashDate(p).date, currentYear, month))
+                .reduce((sum, p) => sum + getCashAmount(p), 0);
 
             const receitaManualRealizada = receitas
-                .filter(r => {
-                    const parts = r.data.split('-');
-                    const rYear = parseInt(parts[0]);
-                    const rMonth = parseInt(parts[1]);
-                    return r.status === 'Pago' && rMonth === month && rYear === currentYear;
-                })
-                .reduce((sum, r) => sum + r.valor, 0);
+                .filter(r => isPeriodMatch(getCashDate(r).date, currentYear, month))
+                .reduce((sum, r) => sum + getCashAmount(r), 0);
 
             // Prevista: pagamentos de contratos com status 'Em aberto' ou 'Atrasado' + receitas manuais com status 'Em aberto' ou 'Atrasado'
             const receitaContratosPrevista = contratos.flatMap(c => c.pagamentos || [])
                 .filter(p => {
-                    const parts = p.vencimento.split('-');
+                    const parts = (getDueDate(p).date || p.vencimento).split('-');
                     const pYear = parseInt(parts[0]);
                     const pMonth = parseInt(parts[1]);
                     return (p.status === 'Em aberto' || p.status === 'Atrasado') && pMonth === month && pYear === currentYear;
@@ -201,7 +198,7 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
 
             const receitaManualPrevista = receitas
                 .filter(r => {
-                    const parts = r.data.split('-');
+                    const parts = (getDueDate(r).date || r.data).split('-');
                     const rYear = parseInt(parts[0]);
                     const rMonth = parseInt(parts[1]);
                     return (r.status === 'Em aberto' || r.status === 'Atrasado') && rMonth === month && rYear === currentYear;
@@ -211,18 +208,13 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
             // --- Despesas ---
             // Realizada: despesas + manutenções com status 'Paga'
             const despesaRealizada = [...despesas, ...manutencoes]
-                .filter(d => {
-                    const parts = d.data.split('-');
-                    const dYear = parseInt(parts[0]);
-                    const dMonth = parseInt(parts[1]);
-                    return d.status === 'Paga' && dMonth === month && dYear === currentYear;
-                })
-                .reduce((sum, d) => sum + d.valor, 0);
+                .filter(d => isPeriodMatch(getCashDate(d).date, currentYear, month))
+                .reduce((sum, d) => sum + getCashAmount(d), 0);
 
             // Prevista: despesas + manutenções com status 'Em aberto'
             const despesaPrevista = [...despesas, ...manutencoes]
                 .filter(d => {
-                    const parts = d.data.split('-');
+                    const parts = (getDueDate(d).date || d.data).split('-');
                     const dYear = parseInt(parts[0]);
                     const dMonth = parseInt(parts[1]);
                     return d.status === 'Em aberto' && dMonth === month && dYear === currentYear;
@@ -453,8 +445,8 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <Card title="Receita do Mês" value={formatCurrency(receitaMes)} description="Receita confirmada" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v.01" /></svg>} />
                 <Card title="Inadimplência" value={formatCurrency(inadimplencia)} description="Valor em aberto" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>} tone={inadimplencia > 0 ? "alert" : "neutral"} />
-                <Card title="ROI (a.a.)" value={`${roiAnual.toFixed(1)}%`} description={`Anualizado · acum. ${roi.toFixed(1)}% em ${mesesOperacao.toFixed(0)} meses`} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>} />
-                <Card title="ROE (a.a.)" value={`${roeAnual.toFixed(1)}%`} description={`Anualizado · acum. ${roe.toFixed(1)}% em ${mesesOperacao.toFixed(0)} meses`} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
+                <Card title="Retorno acumulado da frota" value={retornoAcumulado === null ? 'N/D' : `${retornoAcumulado.toFixed(1)}%`} description="Resultado gerencial ÷ custo de aquisição, sem anualização" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>} />
+                <Card title="Resultado acumulado da frota" value={formatCurrency(resultadoAcumulado)} description="Operação + valor atual/realizado − aquisições" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
             </div>
 
             {/* Charts Row 1 */}

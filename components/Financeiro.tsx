@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Contrato, Despesa, Receita, Pagamento, Manutencao, StatusPagamentoDespesa, StatusPagamento, Veiculo } from '../types';
 import { Table, Header, Card, Modal } from './ui';
 import { formatCurrency, formatDate } from '../utils/formatters';
+import { getBaseCategory, getCashAmount, getCashDate, getDueDate, isAssetSale as isVehicleSale, isPeriodMatch } from '../utils/financial';
 
 interface ContasAReceber {
     id: string;
@@ -12,6 +13,7 @@ interface ContasAReceber {
     motorista_nome?: string;
     contratoId?: number;
     isManual: boolean;
+    isAssetSale?: boolean;
 }
 
 // Combined type for the "Contas a Pagar" table
@@ -42,17 +44,17 @@ interface FinanceiroProps {
     receitasManuais: Receita[];
     manutencoes: Manutencao[];
     veiculos: Veiculo[];
-    onAddDespesa: (despesa: Omit<Despesa, 'id' | 'status'>, parcelas: number, frequencia: 'mensal' | 'semanal') => void;
-    onDeleteDespesa: (id: number) => void;
-    onUpdateDespesaStatus: (id: number, status: StatusPagamentoDespesa) => void;
-    onAddReceita: (receita: Omit<Receita, 'id' | 'status'>, parcelas: number, frequencia: 'mensal' | 'semanal') => void;
-    onDeleteReceita: (id: number) => void;
-    onUpdateReceitaStatus: (id: number, status: StatusPagamento) => void;
-    onUpdateManutencaoStatus: (id: number, status: StatusPagamentoDespesa) => void;
-    onUpdatePagamentoStatus: (contratoId: number, pagamentoId: number, status: StatusPagamento) => void;
-    onUpdatePagamentoValue: (contratoId: number, pagamentoId: number, valor: number) => void;
-    onDeletePagamento: (contratoId: number, pagamentoId: number) => void;
-    onUpdateReceitaValue: (id: number, valor: number) => void;
+    onAddDespesa: (despesa: Omit<Despesa, 'id' | 'status'>, parcelas: number, frequencia: 'mensal' | 'semanal') => Promise<void>;
+    onDeleteDespesa: (id: number) => Promise<void>;
+    onUpdateDespesaStatus: (id: number, status: StatusPagamentoDespesa) => Promise<void>;
+    onAddReceita: (receita: Omit<Receita, 'id' | 'status'>, parcelas: number, frequencia: 'mensal' | 'semanal') => Promise<void>;
+    onDeleteReceita: (id: number) => Promise<void>;
+    onUpdateReceitaStatus: (id: number, status: StatusPagamento) => Promise<void>;
+    onUpdateManutencaoStatus: (id: number, status: StatusPagamentoDespesa) => Promise<void>;
+    onUpdatePagamentoStatus: (contratoId: number, pagamentoId: number, status: StatusPagamento) => Promise<void>;
+    onUpdatePagamentoValue: (contratoId: number, pagamentoId: number, valor: number) => Promise<void>;
+    onDeletePagamento: (contratoId: number, pagamentoId: number) => Promise<void>;
+    onUpdateReceitaValue: (id: number, valor: number) => Promise<void>;
 }
 
 const Financeiro: React.FC<FinanceiroProps> = ({
@@ -79,6 +81,12 @@ const Financeiro: React.FC<FinanceiroProps> = ({
     const [itemToDelete, setItemToDelete] = useState<{ id: string, tipo: string, valor: number, category: 'receita' | 'despesa' | 'pagamento', contratoId?: number } | null>(null);
     const [itemToEdit, setItemToEdit] = useState<{ id: string, tipo: string, valor: number, category: 'receita' | 'pagamento', contratoId?: number } | null>(null);
     const [newEditValue, setNewEditValue] = useState<number>(0);
+    const inferredCashDates = useMemo(() => [
+        ...contratos.flatMap(c => c.pagamentos || []),
+        ...receitasManuais,
+        ...despesasManuais,
+        ...manutencoes,
+    ].filter(item => getCashDate(item).inferred).length, [contratos, receitasManuais, despesasManuais, manutencoes]);
 
     const contasAReceber = useMemo<ContasAReceber[]>(() => {
         const pagamentosContratos: ContasAReceber[] = contratos.flatMap(contrato =>
@@ -87,7 +95,7 @@ const Financeiro: React.FC<FinanceiroProps> = ({
                 contratoId: contrato.id,
                 motorista_nome: contrato.motorista_nome,
                 tipo: 'Locação',
-                vencimento: pagamento.vencimento,
+                vencimento: getDueDate(pagamento).date || pagamento.vencimento,
                 valor: pagamento.valor,
                 status: pagamento.status,
                 isManual: false
@@ -96,11 +104,12 @@ const Financeiro: React.FC<FinanceiroProps> = ({
 
         const receitasAvulsas: ContasAReceber[] = receitasManuais.map(r => ({
             id: `receita-${r.id}`,
-            tipo: r.tipo,
-            vencimento: r.data,
+            tipo: getBaseCategory(r.tipo),
+            vencimento: getDueDate(r).date || r.data,
             valor: r.valor,
             status: r.status,
-            isManual: true
+            isManual: true,
+            isAssetSale: isVehicleSale(r.tipo, r.origem),
         }));
 
         return [...pagamentosContratos, ...receitasAvulsas].sort((a, b) => new Date(b.vencimento).getTime() - new Date(a.vencimento).getTime());
@@ -109,18 +118,18 @@ const Financeiro: React.FC<FinanceiroProps> = ({
     const contasAPagar = useMemo<ContaAPagar[]>(() => {
         const despesasDeManutencoes: ContaAPagar[] = manutencoes.map(m => ({
             id: `manutencao-${m.id}`,
-            tipo: `Manutenção (${m.tipo})`,
+            tipo: `Manutenção (${getBaseCategory(m.tipo)})`,
             veiculo_placa: m.veiculo_placa,
-            data: m.data,
+            data: getDueDate(m).date || m.data,
             valor: m.valor,
             status: m.status,
             isManual: false,
         }));
         const despesasManuaisFormatadas: ContaAPagar[] = despesasManuais.map(d => ({
             id: `despesa-${d.id}`,
-            tipo: d.tipo,
+            tipo: getBaseCategory(d.tipo),
             veiculo_placa: d.veiculo_placa,
-            data: d.data,
+            data: getDueDate(d).date || d.data,
             valor: d.valor,
             status: d.status,
             isManual: true,
@@ -134,31 +143,24 @@ const Financeiro: React.FC<FinanceiroProps> = ({
         const currentMonth = currentDate.getMonth() + 1; // 1-12
         const currentYear = currentDate.getFullYear();
 
-        const receita = contasAReceber
-            .filter(c => {
-                // Parse year/month directly from the YYYY-MM-DD string to avoid timezone issues
-                const parts = c.vencimento.split('-');
-                const year = parseInt(parts[0]);
-                const month = parseInt(parts[1]); // 1-12
-                return c.status === 'Pago' && month === currentMonth && year === currentYear;
-            })
-            .reduce((sum, c) => sum + c.valor, 0);
-
-        const custos = contasAPagar
-            .filter(d => {
-                const parts = d.data.split('-');
-                const year = parseInt(parts[0]);
-                const month = parseInt(parts[1]); // 1-12
-                return d.status === 'Paga' && month === currentMonth && year === currentYear;
-            })
-            .reduce((sum, d) => sum + d.valor, 0);
+        const recebimentos = [
+            ...contratos.flatMap(c => c.pagamentos || []),
+            ...receitasManuais,
+        ];
+        const pagamentos = [...despesasManuais, ...manutencoes];
+        const receita = recebimentos
+            .filter(item => isPeriodMatch(getCashDate(item).date, currentYear, currentMonth))
+            .reduce((sum, item) => sum + getCashAmount(item), 0);
+        const custos = pagamentos
+            .filter(item => isPeriodMatch(getCashDate(item).date, currentYear, currentMonth))
+            .reduce((sum, item) => sum + getCashAmount(item), 0);
 
         return {
             receitaTotalMes: receita,
             custosTotaisMes: custos,
             lucroBrutoMes: receita - custos
         };
-    }, [contasAReceber, contasAPagar]);
+    }, [contratos, receitasManuais, despesasManuais, manutencoes]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target;
@@ -179,12 +181,12 @@ const Financeiro: React.FC<FinanceiroProps> = ({
         setFormData(prev => ({ ...prev, [name]: processedValue }));
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         const { transacaoTipo, parcelas, frequencia, ...data } = formData;
 
         if (transacaoTipo === 'despesa') {
-            onAddDespesa({
+            await onAddDespesa({
                 tipo: data.tipo,
                 veiculo_placa: data.veiculo_placa,
                 veiculo_id: data.veiculo_id ?? undefined,
@@ -192,7 +194,7 @@ const Financeiro: React.FC<FinanceiroProps> = ({
                 valor: data.valor
             }, parcelas, frequencia);
         } else {
-            onAddReceita({
+            await onAddReceita({
                 tipo: data.tipo,
                 veiculo_placa: data.veiculo_placa,
                 veiculo_id: data.veiculo_id ?? undefined,
@@ -266,7 +268,13 @@ const Financeiro: React.FC<FinanceiroProps> = ({
 
     return (
         <>
-            <Header title="Financeiro" description="Controle as contas a receber e a pagar da sua frota." />
+            <Header title="Financeiro" description="Fluxo de caixa realizado por liquidação e previsto por vencimento." />
+
+            {inferredCashDates > 0 && (
+                <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                    {inferredCashDates} lançamento(s) legado(s) pago(s) não possuem data de liquidação; o sistema usa o vencimento como data inferida.
+                </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <Card title="Receita Realizada (Mês)" value={formatCurrency(receitaTotalMes)} icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>} />
@@ -347,18 +355,24 @@ const Financeiro: React.FC<FinanceiroProps> = ({
                                         header: 'Ações', accessor: 'id', render: (item) => (
                                             <div className="flex items-center gap-2">
                                                 {!item.isManual && <span className="text-[10px] text-slate-400 italic bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded mr-1">Contrato</span>}
-                                                <button
-                                                    onClick={() => handleEditClick(item)}
-                                                    className="font-medium text-sm transition-colors" style={{ color: '#f5f1ea' }}
-                                                >
-                                                    Editar
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteClick(item, item.isManual ? 'receita' : 'pagamento')}
-                                                    className="font-medium text-sm transition-colors" style={{ color: '#ff2a2a' }}
-                                                >
-                                                    Excluir
-                                                </button>
+                                                {item.isAssetSale ? (
+                                                    <span className="text-[10px] text-slate-400 italic">Venda vinculada</span>
+                                                ) : (
+                                                    <>
+                                                        <button
+                                                            onClick={() => handleEditClick(item)}
+                                                            className="font-medium text-sm transition-colors" style={{ color: '#f5f1ea' }}
+                                                        >
+                                                            Editar
+                                                        </button>
+                                                        <button
+                                                            onClick={() => handleDeleteClick(item, item.isManual ? 'receita' : 'pagamento')}
+                                                            className="font-medium text-sm transition-colors" style={{ color: '#ff2a2a' }}
+                                                        >
+                                                            Excluir
+                                                        </button>
+                                                    </>
+                                                )}
                                             </div>
                                         )
                                     }
@@ -461,10 +475,12 @@ const Financeiro: React.FC<FinanceiroProps> = ({
                             <label htmlFor="tipo" className="block text-sm font-medium text-slate-700 dark:text-slate-300">Descrição / Categoria</label>
                             {formData.transacaoTipo === 'despesa' ? (
                                 <select name="tipo" id="tipo" value={formData.tipo} onChange={handleInputChange} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-petrol-blue-500 focus:ring-petrol-blue-500 sm:text-sm bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
-                                    <option>Financiamento</option>
+                                    <option>Principal de financiamento</option>
+                                    <option>Juros e encargos</option>
                                     <option>Seguro</option>
                                     <option>IPVA</option>
                                     <option>Documentação</option>
+                                    <option>Tributos sobre receita</option>
                                     <option>Multa</option>
                                     <option>Manutenção</option>
                                     <option>Outros</option>
@@ -509,7 +525,7 @@ const Financeiro: React.FC<FinanceiroProps> = ({
                     </div>
                     {formData.parcelas > 1 && (
                         <p className="text-[10px] text-slate-500 italic mt-1">
-                            Serão gerados {formData.parcelas} lançamentos mensais de {formatCurrency(formData.valor / formData.parcelas)} cada.
+                            Serão gerados {formData.parcelas} lançamentos; eventuais centavos residuais serão ajustados na primeira parcela.
                         </p>
                     )}
                     <div className="pt-5 border-t mt-4 flex justify-end space-x-3">

@@ -3,6 +3,7 @@ import { Header } from './ui';
 import { Contrato, Despesa, Manutencao, Multa, Receita, Veiculo } from '../types';
 import { formatCurrency } from '../utils/formatters';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { classifyDreExpenseCategory, consolidateAssetSales, getCompetenceDate, isAssetSale } from '../utils/financial';
 
 interface DREProps {
     contratos: Contrato[];
@@ -23,25 +24,31 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
         const yearsSet = new Set<number>();
         yearsSet.add(new Date().getFullYear());
 
-        contratos.forEach(c => (c.pagamentos || []).forEach(p => yearsSet.add(parseInt(p.vencimento.split('-')[0]))));
-        despesas.forEach(d => yearsSet.add(parseInt(d.data.split('-')[0])));
-        manutencoes.forEach(m => yearsSet.add(parseInt(m.data.split('-')[0])));
-        multas.forEach(m => yearsSet.add(parseInt(m.data.split('-')[0])));
+        contratos.forEach(c => (c.pagamentos || []).forEach(p => yearsSet.add(parseInt((getCompetenceDate(p).date || p.vencimento).split('-')[0]))));
+        receitasManuais.forEach(r => yearsSet.add(parseInt((getCompetenceDate(r).date || r.data).split('-')[0])));
+        despesas.forEach(d => yearsSet.add(parseInt((getCompetenceDate(d).date || d.data).split('-')[0])));
+        manutencoes.forEach(m => yearsSet.add(parseInt((getCompetenceDate(m).date || m.data).split('-')[0])));
+        multas.forEach(m => yearsSet.add(parseInt((getCompetenceDate(m).date || m.data).split('-')[0])));
 
         return Array.from(yearsSet).sort((a, b) => b - a);
-    }, [contratos, despesas, manutencoes, multas]);
+    }, [contratos, receitasManuais, despesas, manutencoes, multas]);
 
     const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
     // Helper to calculate DRE for a specific period
     const calculateDRE = (year: number, month: number | 'all') => {
+        const periodEnd = month === 'all'
+            ? `${year}-12-31`
+            : new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
+        const today = new Date().toISOString().slice(0, 10);
+        const cutoff = periodEnd < today ? periodEnd : today;
         const isPeriodMatch = (dateStr: string) => {
             const parts = dateStr.split('-');
             const dateYear = parseInt(parts[0]);
             const dateMonth = parseInt(parts[1]); // 1-12
             const yearMatch = dateYear === year;
             const monthMatch = month === 'all' || dateMonth === month;
-            return yearMatch && monthMatch;
+            return yearMatch && monthMatch && dateStr <= cutoff;
         };
 
         const isVeiculoMatch = (vId?: number, vPlaca?: string) => {
@@ -58,23 +65,40 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
         // 1. Receita Bruta OPERACIONAL — só aluguel. Venda de veículo é
         //    desmobilização de ativo, não faturamento: entra no resultado
         //    não-operacional (abaixo), fora da receita e das margens.
-        const ehVendaDeAtivo = (tipo?: string) => (tipo || '').includes('Venda de Veículo');
         let receitaBruta = 0;
         contratos.forEach(c => {
             if (selectedVeiculoId !== 'all' && c.veiculo_id !== selectedVeiculoId) return;
             (c.pagamentos || []).forEach(p => {
-                if (p.status === 'Pago' && isPeriodMatch(p.vencimento)) receitaBruta += p.valor;
+                if (isPeriodMatch(getCompetenceDate(p).date || '')) receitaBruta += p.valor;
             });
         });
-        let resultadoNaoOperacional = 0; // venda de ativos
         receitasManuais.forEach(r => {
-            if (r.status !== 'Pago' || !isPeriodMatch(r.data) || !isVeiculoMatch(r.veiculo_id, r.veiculo_placa)) return;
-            if (ehVendaDeAtivo(r.tipo)) resultadoNaoOperacional += r.valor;
-            else receitaBruta += r.valor; // outras receitas avulsas seguem operacionais
+            if (!isPeriodMatch(getCompetenceDate(r).date || '') || !isVeiculoMatch(r.veiculo_id, r.veiculo_placa)) return;
+            if (!isAssetSale(r.tipo, r.origem)) receitaBruta += r.valor;
         });
 
-        // 1.1 Impostos e Deduções (Zerado conforme solicitação - será lançado manualmente)
-        const impostosDeducoes = 0;
+        // Consolida todas as parcelas da venda em um único evento. Para legado,
+        // usa a primeira competência; assim a baixa do ativo ocorre uma vez e o
+        // total anual fecha com a soma dos meses.
+        const vehicleSaleDates = new Map<number, string | undefined>(
+            veiculos.map(v => [v.id, v.data_venda] as [number, string | undefined])
+        );
+        const consolidatedSales = consolidateAssetSales(receitasManuais, vehicleSaleDates);
+        let resultadoNaoOperacional = 0;
+        consolidatedSales.forEach(sale => {
+            const veiculo = sale.vehicleId
+                ? veiculos.find(v => v.id === sale.vehicleId)
+                : veiculos.find(v => v.placa === sale.vehiclePlate);
+            if (!isPeriodMatch(sale.eventDate || '') || !isVeiculoMatch(sale.vehicleId || undefined, sale.vehiclePlate || undefined)) return;
+            resultadoNaoOperacional += sale.saleValue - (veiculo?.valor_compra || 0);
+        });
+
+        // Tributos informados entram como dedução; não são mais fixados artificialmente em zero.
+        const impostosDeducoes = despesas
+            .filter(d => classifyDreExpenseCategory(d.tipo) === 'deducao'
+                && isPeriodMatch(getCompetenceDate(d).date || '')
+                && isVeiculoMatch(d.veiculo_id, d.veiculo_placa))
+            .reduce((total, d) => total + d.valor, 0);
         const receitaLiquida = receitaBruta - impostosDeducoes;
 
         // 2. Classificação de despesas por grupo do DRE. A lista anterior só
@@ -82,31 +106,26 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
         //    INSS, Simples, licenciamento, combustível sumiam do resultado).
         //    Agora todo tipo cai em algum grupo; o que não for CSP nem financeiro
         //    conta como despesa operacional — nada some.
-        const CSP_TIPOS = ['Seguro', 'IPVA', 'Documentação', 'Licenciamento', 'Manutenção', 'Combustível', 'Lavagem', 'Estacionamento', 'Pneus', 'Rastreador'];
-        const FIN_TIPOS = ['Financiamento', 'Juros'];
-        const grupoDespesa = (tipo: string): 'csp' | 'financeiro' | 'adm' | 'naoClassificado' => {
-            if (CSP_TIPOS.includes(tipo)) return 'csp';
-            if (FIN_TIPOS.includes(tipo)) return 'financeiro';
-            if (['Contabilidade', 'Impostos', 'Salários', 'Marketing', 'Aluguel', 'Outros'].includes(tipo)) return 'adm';
-            return 'naoClassificado';
-        };
-
         // Manutenções (tabela própria) são sempre custo direto da frota
         let custosManutencao = 0;
         manutencoes.forEach(m => {
-            if (isPeriodMatch(m.data) && isVeiculoMatch(m.veiculo_id, m.veiculo_placa)) custosManutencao += m.valor;
+            if (isPeriodMatch(getCompetenceDate(m).date || '') && isVeiculoMatch(m.veiculo_id, m.veiculo_placa)) custosManutencao += m.valor;
         });
 
         let custosFrotaFixos = 0;      // CSP vindo de despesas (seguro, IPVA, docs…)
         let despesasAdm = 0;           // administrativas e gerais
         let despesasFinanceiras = 0;   // juros de financiamento
         let despesasNaoClassificadas = 0; // tipos fora do mapa — contam como adm, mas ficam visíveis
+        let financiamentoNaoSegregado = 0; // legado: principal e juros ainda misturados, fora da DRE
         despesas.forEach(d => {
-            if (!isPeriodMatch(d.data) || !isVeiculoMatch(d.veiculo_id, d.veiculo_placa)) return;
-            switch (grupoDespesa(d.tipo)) {
+            if (!isPeriodMatch(getCompetenceDate(d).date || '') || !isVeiculoMatch(d.veiculo_id, d.veiculo_placa)) return;
+            switch (classifyDreExpenseCategory(d.tipo)) {
                 case 'csp': custosFrotaFixos += d.valor; break;
                 case 'financeiro': despesasFinanceiras += d.valor; break;
-                case 'adm': despesasAdm += d.valor; break;
+                case 'administrativo': despesasAdm += d.valor; break;
+                case 'deducao':
+                case 'principal': break;
+                case 'financiamento_nao_segregado': financiamentoNaoSegregado += d.valor; break;
                 default: despesasNaoClassificadas += d.valor; despesasAdm += d.valor; break;
             }
         });
@@ -116,7 +135,7 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
 
         let multasDespesas = 0;
         multas.forEach(m => {
-            if (isPeriodMatch(m.data) && isVeiculoMatch(m.veiculo_id, m.veiculo_placa)) multasDespesas += m.valor;
+            if (isPeriodMatch(getCompetenceDate(m).date || '') && isVeiculoMatch(m.veiculo_id, m.veiculo_placa)) multasDespesas += m.valor;
         });
 
         const totalDespesasOp = despesasAdm + multasDespesas;
@@ -140,6 +159,7 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
             resultadoBruto,
             despesasAdm,
             despesasNaoClassificadas,
+            financiamentoNaoSegregado,
             multasDespesas,
             totalDespesasOp,
             ebitda,
@@ -171,9 +191,15 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <Header
-                title="DRE"
-                description="Demonstrativo de Resultados do Exercício - Visão consolidada e detalhada de lucros e perdas."
+                title="DRE gerencial por competência"
+                description="Receitas e despesas são reconhecidas na competência, independentemente da liquidação."
             />
+
+            {currentDRE.financiamentoNaoSegregado > 0 && (
+                <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                    {formatCurrency(currentDRE.financiamentoNaoSegregado)} em financiamentos legados estão fora da DRE até a separação entre principal e juros.
+                </div>
+            )}
 
             {/* Filters Bar */}
             <div className="flex flex-wrap items-center justify-between gap-4 bg-white dark:bg-slate-800 p-4 rounded-lg shadow-sm border border-slate-100 dark:border-slate-700">

@@ -4,6 +4,7 @@
  */
 
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import type { Receita, Veiculo } from '../types';
 
 export type TableName =
     | 'veiculos'
@@ -102,6 +103,56 @@ export async function create<T>(table: TableName, data: Partial<T>): Promise<T> 
     }
 
     return result as T;
+}
+
+/**
+ * Cria vários registros em uma única requisição. Isso evita que um parcelamento
+ * fique parcialmente salvo quando uma das inserções falha.
+ */
+export async function createMany<T>(table: TableName, rows: Partial<T>[]): Promise<T[]> {
+    if (!isSupabaseConfigured()) {
+        throw new Error('Supabase não configurado');
+    }
+    if (rows.length === 0) return [];
+
+    const { data: { user } } = await supabase.auth.getUser();
+    const payload = rows.map(row => {
+        const item = { ...row } as Partial<T> & { user_id?: string };
+        if (user && !item.user_id) item.user_id = user.id;
+        return item;
+    });
+
+    const { data: result, error } = await supabase
+        .from(table)
+        .insert(payload)
+        .select();
+
+    if (error) {
+        console.error(`Erro ao criar lote em ${table}:`, error);
+        throw error;
+    }
+    return (result as T[]) || [];
+}
+
+export async function registerVehicleSale(
+    vehicleId: number,
+    saleValue: number,
+    saleDate: string,
+    revenueRows: Omit<Receita, 'id'>[],
+): Promise<{ veiculo: Veiculo; receitas: Receita[] }> {
+    if (!isSupabaseConfigured()) throw new Error('Supabase não configurado');
+
+    const { data, error } = await supabase.rpc('registrar_venda_veiculo', {
+        p_veiculo_id: vehicleId,
+        p_valor_venda: saleValue,
+        p_data_venda: saleDate,
+        p_receitas: revenueRows,
+    });
+    if (error) {
+        console.error('Erro ao registrar venda transacional:', error);
+        throw error;
+    }
+    return data as { veiculo: Veiculo; receitas: Receita[] };
 }
 
 /**
@@ -446,10 +497,10 @@ export async function updateProfileRole(userId: string, newRole: 'admin' | 'gere
         return;
     }
     try {
-        const { error } = await supabase
-            .from('profiles')
-            .update({ role: newRole })
-            .eq('id', userId);
+        const { error } = await supabase.rpc('set_profile_role', {
+            target_user: userId,
+            new_role: newRole,
+        });
 
         if (error) throw error;
     } catch (error) {
@@ -463,15 +514,5 @@ export async function deleteUserProfile(userId: string): Promise<void> {
         console.warn('Supabase not configured');
         return;
     }
-    try {
-        const { error } = await supabase
-            .from('profiles')
-            .delete()
-            .eq('id', userId);
-
-        if (error) throw error;
-    } catch (error) {
-        console.error('Erro ao deletar perfil:', error);
-        throw error;
-    }
+    throw new Error(`Exclusão do usuário ${userId} bloqueada: use uma Edge Function administrativa que remova auth.users e profile na mesma operação.`);
 }

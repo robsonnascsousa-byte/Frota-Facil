@@ -18,10 +18,11 @@ import ControleAcessos from './components/ControleAcessos';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { useDarkMode } from './hooks/useDarkMode';
 import { useResource } from './hooks/useResource';
-import { Page, Veiculo, Plano, Manutencao, Multa, Sinistro, Documento, Motorista, Contrato, Despesa, Receita, StatusPagamentoDespesa, StatusContrato, StatusPagamento } from './types';
+import { Page, Veiculo, Plano, Manutencao, Multa, Sinistro, Documento, Motorista, Contrato, Despesa, Receita, Pagamento, StatusPagamentoDespesa, StatusContrato, StatusPagamento } from './types';
 import { Table, Header, Toast } from './components/ui';
 import { AppSettings, defaultSettings } from './types/settings';
 import * as db from './services/database';
+import { addDaysUtc, addMonthsClamped, isAssetSale, splitAmountInCents } from './utils/financial';
 
 // Simple placeholder pages defined within App.tsx to reduce file count
 const DocumentosPage: React.FC<{ documentos: Documento[] }> = ({ documentos }) => (
@@ -146,68 +147,137 @@ const InnerApp: React.FC = () => {
 
   const handleUpdateVeiculo = async (updatedVeiculo: Veiculo, saleConfig?: { tipo: 'avista' | 'parcelado'; valorEntrada: number; numParcelas: number }) => {
     const previousVeiculo = veiculos.find(v => v.id === updatedVeiculo.id);
-    await updateVeiculo(updatedVeiculo);
+    if (previousVeiculo?.status === 'Vendido') {
+      if (
+        updatedVeiculo.status !== 'Vendido'
+        || updatedVeiculo.valor_venda !== previousVeiculo.valor_venda
+        || updatedVeiculo.valor_compra !== previousVeiculo.valor_compra
+        || updatedVeiculo.data_compra !== previousVeiculo.data_compra
+        || updatedVeiculo.placa !== previousVeiculo.placa
+      ) {
+        throw new Error('Campos financeiros de um veículo vendido só podem ser alterados por uma retificação auditada.');
+      }
+      await updateVeiculo({ ...updatedVeiculo, data_venda: previousVeiculo.data_venda });
+      return;
+    }
+    const today = new Date().toISOString().split('T')[0];
+    const isNewSale = updatedVeiculo.status === 'Vendido' && previousVeiculo?.status !== 'Vendido';
+    const vehicleToSave = isNewSale ? { ...updatedVeiculo, data_venda: today } : updatedVeiculo;
+    if (!isNewSale) {
+      await updateVeiculo(vehicleToSave);
+      return;
+    }
+
+    if (!updatedVeiculo.valor_venda || updatedVeiculo.valor_venda <= 0) {
+      throw new Error('Informe um valor de venda maior que zero.');
+    }
+    if (saleConfig?.tipo === 'parcelado' && (
+      !Number.isInteger(saleConfig.numParcelas)
+      || saleConfig.numParcelas < 1
+      || saleConfig.valorEntrada < 0
+      || saleConfig.valorEntrada > updatedVeiculo.valor_venda
+    )) {
+      throw new Error('Revise a entrada e a quantidade de parcelas da venda.');
+    }
+
+    // Salva outras edições sem mudar o estado operacional. A transição para
+    // Vendido e as receitas são efetivadas juntas pela função transacional.
+    if (previousVeiculo) {
+      await updateVeiculo({
+        ...vehicleToSave,
+        status: previousVeiculo.status,
+        valor_venda: previousVeiculo.valor_venda,
+        data_venda: previousVeiculo.data_venda,
+      });
+    }
 
     // Auto-generate sale revenue when status changes to "Vendido"
-    if (updatedVeiculo.status === 'Vendido'
-        && previousVeiculo?.status !== 'Vendido'
-        && updatedVeiculo.valor_venda && updatedVeiculo.valor_venda > 0) {
+    if (isNewSale) {
 
       // Check for duplicate
       const alreadyExists = receitas.some(r =>
         r.tipo.includes('Venda de Veículo') && r.veiculo_placa === updatedVeiculo.placa
       );
 
-      if (!alreadyExists) {
-        const today = new Date().toISOString().split('T')[0];
+      if (alreadyExists) {
+        throw new Error('Este veículo já possui lançamentos de venda. Revise os dados antes de alterar o status.');
+      }
+      {
         const placa = updatedVeiculo.placa;
         const veiculoId = updatedVeiculo.id;
+        const saleRows: Omit<Receita, 'id'>[] = [];
 
         if (!saleConfig || saleConfig.tipo === 'avista') {
-          // À vista: single receita, status Pago
-          await addReceita({
-            tipo: `Venda de Veículo (${placa})`,
+          saleRows.push({
+            tipo: 'Venda de Veículo',
             veiculo_placa: placa,
             veiculo_id: veiculoId,
             data: today,
+            data_competencia: today,
+            data_vencimento: today,
+            data_pagamento: today,
+            data_liquidacao: today,
+            valor_liquidado: updatedVeiculo.valor_venda,
+            origem_liquidacao: 'informada',
+            origem: 'venda_veiculo',
+            parcela_numero: 1,
+            parcelas_total: 1,
             valor: updatedVeiculo.valor_venda,
             status: 'Pago' as StatusPagamento,
           });
         } else {
-          // Parcelado
           const parcelamento_id = `p-venda-${Date.now()}`;
+          const saldo = updatedVeiculo.valor_venda - saleConfig.valorEntrada;
+          const installmentValues = splitAmountInCents(saldo, saleConfig.numParcelas);
+          const totalLancamentos = saleConfig.numParcelas + (saleConfig.valorEntrada > 0 ? 1 : 0);
 
-          // Entrada (if any)
           if (saleConfig.valorEntrada > 0) {
-            await addReceita({
-              tipo: `Venda de Veículo - Entrada (${placa})`,
+            saleRows.push({
+              tipo: 'Venda de Veículo - Entrada',
               veiculo_placa: placa,
               veiculo_id: veiculoId,
               data: today,
+              data_competencia: today,
+              data_vencimento: today,
+              data_pagamento: today,
+              data_liquidacao: today,
+              valor_liquidado: saleConfig.valorEntrada,
+              origem_liquidacao: 'informada',
+              origem: 'venda_veiculo',
+              parcela_numero: 1,
+              parcelas_total: totalLancamentos,
               valor: saleConfig.valorEntrada,
               status: 'Pago' as StatusPagamento,
               parcelamento_id,
             });
           }
 
-          // Installments for remaining balance
-          const saldo = updatedVeiculo.valor_venda - saleConfig.valorEntrada;
-          const valorParcela = saldo / saleConfig.numParcelas;
-
           for (let i = 0; i < saleConfig.numParcelas; i++) {
-            const date = new Date(today + 'T12:00:00');
-            date.setMonth(date.getMonth() + (i + 1));
-            await addReceita({
-              tipo: `Venda de Veículo (${placa}) ${i + 1}/${saleConfig.numParcelas}`,
+            const dueDate = addMonthsClamped(today, i + 1);
+            saleRows.push({
+              tipo: 'Venda de Veículo',
               veiculo_placa: placa,
               veiculo_id: veiculoId,
-              data: date.toISOString().split('T')[0],
-              valor: valorParcela,
+              data: dueDate,
+              data_competencia: today,
+              data_vencimento: dueDate,
+              origem: 'venda_veiculo',
+              parcela_numero: i + 1 + (saleConfig.valorEntrada > 0 ? 1 : 0),
+              parcelas_total: totalLancamentos,
+              valor: installmentValues[i],
               status: 'Em aberto' as StatusPagamento,
               parcelamento_id,
             });
           }
         }
+        const result = await db.registerVehicleSale(
+          updatedVeiculo.id,
+          updatedVeiculo.valor_venda,
+          today,
+          saleRows,
+        );
+        setVeiculos(prev => prev.map(v => v.id === result.veiculo.id ? result.veiculo : v));
+        setReceitas(prev => [...prev, ...result.receitas]);
       }
     }
   };
@@ -313,16 +383,22 @@ const InnerApp: React.FC = () => {
           intervalDays = 1;
         }
 
-        for (let i = 0; i < numPagamentos; i++) {
-          const vencimento = new Date(inicio);
-          vencimento.setDate(vencimento.getDate() + (i * intervalDays));
-          await db.create('pagamentos', {
+        const dueDates = Array.from({ length: numPagamentos }, (_, i) => {
+          if (plano.tipo_cobranca === 'Mensal') return addMonthsClamped(contrato.data_inicio, i);
+          return addDaysUtc(contrato.data_inicio, i * intervalDays);
+        });
+        const paymentRows: Partial<Pagamento>[] = dueDates.map((vencimento, i) => ({
             contrato_id: newContrato.id,
             valor: plano.valor_base,
-            vencimento: vencimento.toISOString().split('T')[0],
-            status: 'Em aberto'
-          });
-        }
+            vencimento,
+            data_competencia: vencimento,
+            data_vencimento: vencimento,
+            origem: 'contrato',
+            parcela_numero: i + 1,
+            parcelas_total: numPagamentos,
+            status: 'Em aberto',
+        }));
+        await db.createMany<Pagamento>('pagamentos', paymentRows);
       }
 
       // Update vehicle status
@@ -374,21 +450,37 @@ const InnerApp: React.FC = () => {
   const handleAddManutencao = async (manutencao: Omit<Manutencao, 'id'>, parcelas: number = 1) => {
     try {
       if (parcelas > 1) {
-        const installmentValue = manutencao.valor / parcelas;
-        for (let i = 0; i < parcelas; i++) {
-          const date = new Date(manutencao.data + 'T12:00:00');
-          date.setMonth(date.getMonth() + i);
-          await addManutencao({
+        const installmentValues = splitAmountInCents(manutencao.valor, parcelas);
+        const parcelamento_id = `p-manut-${Date.now()}`;
+        const rows = installmentValues.map((valor, i) => {
+          const dueDate = addMonthsClamped(manutencao.data, i);
+          return {
             ...manutencao,
-            valor: installmentValue,
-            data: date.toISOString().split('T')[0],
-            status: 'Em aberto',
+            valor,
+            data: dueDate,
+            data_competencia: manutencao.data,
+            data_vencimento: dueDate,
+            origem: 'manual' as const,
+            parcela_numero: i + 1,
+            parcelas_total: parcelas,
+            parcelamento_id,
+            status: 'Em aberto' as StatusPagamentoDespesa,
             documentos_anexados: [],
-            tipo: `${manutencao.tipo} (${i + 1}/${parcelas})`
-          });
-        }
+          };
+        });
+        const createdRows = await db.createMany<Manutencao>('manutencoes', rows);
+        setManutencoes(prev => [...prev, ...createdRows]);
       } else {
-        await addManutencao({ ...manutencao, status: 'Em aberto', documentos_anexados: [] });
+        await addManutencao({
+          ...manutencao,
+          data_competencia: manutencao.data,
+          data_vencimento: manutencao.data,
+          origem: 'manual',
+          parcela_numero: 1,
+          parcelas_total: 1,
+          status: 'Em aberto',
+          documentos_anexados: []
+        });
       }
     } catch (error: any) {
       console.error('Erro ao salvar manutenção:', error);
@@ -422,13 +514,16 @@ const InnerApp: React.FC = () => {
   // Auxiliary updates (Status updates) - These modify the object and call update
   const handleUpdateManutencaoStatus = async (manutencaoId: number, status: StatusPagamentoDespesa) => {
     const m = manutencoes.find(x => x.id === manutencaoId);
-    if (m) await updateManutencao({ ...m, status });
+    if (m) {
+      const liquidatedAt = status === 'Paga' ? new Date().toISOString().slice(0, 10) : null;
+      await updateManutencao({ ...m, status, data_pagamento: liquidatedAt, data_liquidacao: liquidatedAt, valor_liquidado: liquidatedAt ? m.valor : null });
+    }
   };
 
   // --- Multa Handlers ---
   // --- Multa Handlers ---
   const handleAddMulta = async (multa: Omit<Multa, 'id'>) => {
-    await addMulta(multa);
+    await addMulta({ ...multa, data_competencia: multa.data, data_vencimento: multa.data, origem: 'manual' });
   };
 
   const handleDeleteMulta = async (id: number) => {
@@ -451,7 +546,10 @@ const InnerApp: React.FC = () => {
 
   const handleUpdateMultaStatus = async (multaId: number, status: Multa['status']) => {
     const m = multas.find(x => x.id === multaId);
-    if (m) await updateMulta({ ...m, status });
+    if (m) {
+      const liquidatedAt = status === 'Paga' ? new Date().toISOString().slice(0, 10) : null;
+      await updateMulta({ ...m, status, data_pagamento: liquidatedAt, data_liquidacao: liquidatedAt, valor_liquidado: liquidatedAt ? m.valor : null });
+    }
   };
 
   // --- Sinistro Handlers ---
@@ -485,27 +583,38 @@ const InnerApp: React.FC = () => {
   // --- Despesa Handlers ---
   const handleAddDespesa = async (despesa: Omit<Despesa, 'id'>, parcelas: number = 1, frequencia: 'mensal' | 'semanal' = 'mensal') => {
     if (parcelas > 1) {
-      const installmentValue = despesa.valor / parcelas;
+      const installmentValues = splitAmountInCents(despesa.valor, parcelas);
       const parcelamento_id = `p-desp-${Date.now()}`;
-      for (let i = 0; i < parcelas; i++) {
-        const date = new Date(despesa.data + 'T12:00:00'); // Add time to avoid TZ issues
-        if (frequencia === 'mensal') {
-          date.setMonth(date.getMonth() + i);
-        } else {
-          date.setDate(date.getDate() + (i * 7));
-        }
-        await addDespesa({
+      const rows = installmentValues.map((valor, i) => {
+        const dueDate = frequencia === 'mensal'
+          ? addMonthsClamped(despesa.data, i)
+          : addDaysUtc(despesa.data, i * 7);
+        return {
           ...despesa,
-          valor: installmentValue,
-          data: date.toISOString().split('T')[0],
+          valor,
+          data: dueDate,
+          data_competencia: despesa.data,
+          data_vencimento: dueDate,
+          origem: 'manual' as const,
+          parcela_numero: i + 1,
+          parcelas_total: parcelas,
           status: 'Em aberto' as StatusPagamentoDespesa,
           parcelamento_id,
-          tipo: `${despesa.tipo} (${i + 1}/${parcelas})`,
           veiculo_id: despesa.veiculo_id
-        });
-      }
+        };
+      });
+      const createdRows = await db.createMany<Despesa>('despesas', rows);
+      setDespesas(prev => [...prev, ...createdRows]);
     } else {
-      await addDespesa({ ...despesa, status: 'Em aberto' as StatusPagamentoDespesa });
+      await addDespesa({
+        ...despesa,
+        data_competencia: despesa.data,
+        data_vencimento: despesa.data,
+        origem: 'manual',
+        parcela_numero: 1,
+        parcelas_total: 1,
+        status: 'Em aberto' as StatusPagamentoDespesa
+      });
     }
   };
 
@@ -529,39 +638,56 @@ const InnerApp: React.FC = () => {
 
   const handleUpdateDespesaStatus = async (despesaId: number, status: StatusPagamentoDespesa) => {
     const d = despesas.find(x => x.id === despesaId);
-    if (d) await updateDespesa({ ...d, status });
+    if (d) {
+      const liquidatedAt = status === 'Paga' ? new Date().toISOString().slice(0, 10) : null;
+      await updateDespesa({ ...d, status, data_pagamento: liquidatedAt, data_liquidacao: liquidatedAt, valor_liquidado: liquidatedAt ? d.valor : null });
+    }
   };
 
   // --- Receita Handlers ---
   const handleAddReceita = async (receita: Omit<Receita, 'id'>, parcelas: number = 1, frequencia: 'mensal' | 'semanal' = 'mensal') => {
     if (parcelas > 1) {
-      const installmentValue = receita.valor / parcelas;
+      const installmentValues = splitAmountInCents(receita.valor, parcelas);
       const parcelamento_id = `p-rec-${Date.now()}`;
-      for (let i = 0; i < parcelas; i++) {
-        const date = new Date(receita.data + 'T12:00:00');
-        if (frequencia === 'mensal') {
-          date.setMonth(date.getMonth() + i);
-        } else {
-          date.setDate(date.getDate() + (i * 7));
-        }
-        await addReceita({
+      const rows = installmentValues.map((valor, i) => {
+        const dueDate = frequencia === 'mensal'
+          ? addMonthsClamped(receita.data, i)
+          : addDaysUtc(receita.data, i * 7);
+        return {
           ...receita,
-          valor: installmentValue,
-          data: date.toISOString().split('T')[0],
+          valor,
+          data: dueDate,
+          data_competencia: receita.data,
+          data_vencimento: dueDate,
+          origem: receita.origem || 'manual' as const,
+          parcela_numero: i + 1,
+          parcelas_total: parcelas,
           status: 'Em aberto' as StatusPagamento,
           parcelamento_id,
-          tipo: `${receita.tipo} (${i + 1}/${parcelas})`,
           veiculo_id: receita.veiculo_id
-        });
-      }
+        };
+      });
+      const createdRows = await db.createMany<Receita>('receitas', rows);
+      setReceitas(prev => [...prev, ...createdRows]);
     } else {
-      await addReceita({ ...receita, status: 'Em aberto' as StatusPagamento });
+      await addReceita({
+        ...receita,
+        data_competencia: receita.data,
+        data_vencimento: receita.data,
+        origem: receita.origem || 'manual',
+        parcela_numero: 1,
+        parcelas_total: 1,
+        status: 'Em aberto' as StatusPagamento
+      });
     }
   };
 
   const handleDeleteReceita = async (id: number) => {
     const deleted = receitas.find(r => r.id === id);
     if (deleted) {
+      if (isAssetSale(deleted.tipo, deleted.origem)) {
+        throw new Error('Receitas de venda não podem ser excluídas isoladamente.');
+      }
       await removeReceita(id);
       setLastDeletedReceita({ receita: deleted, index: 0 });
       setReceitaToastVisible(true);
@@ -579,12 +705,18 @@ const InnerApp: React.FC = () => {
 
   const handleUpdateReceitaStatus = async (receitaId: number, status: StatusPagamento) => {
     const r = receitas.find(x => x.id === receitaId);
-    if (r) await updateReceita({ ...r, status });
+    if (r) {
+      const liquidatedAt = status === 'Pago' ? new Date().toISOString().slice(0, 10) : null;
+      await updateReceita({ ...r, status, data_pagamento: liquidatedAt, data_liquidacao: liquidatedAt, valor_liquidado: liquidatedAt ? r.valor : null });
+    }
   };
 
   const handleUpdateReceitaValue = async (receitaId: number, valor: number) => {
     const r = receitas.find(x => x.id === receitaId);
-    if (r) await updateReceita({ ...r, valor });
+    if (r) {
+      if (isAssetSale(r.tipo, r.origem)) throw new Error('O valor de uma parcela de venda é imutável.');
+      await updateReceita({ ...r, valor, valor_liquidado: r.status === 'Pago' ? valor : r.valor_liquidado });
+    }
   };
 
   const handleUpdatePagamentoStatus = async (contratoId: number, pagamentoId: number, status: StatusPagamento) => {
@@ -600,12 +732,15 @@ const InnerApp: React.FC = () => {
     // The update logic in App.tsx was in-memory.
     // For Supabase, we should update the 'pagamentos' table row.
 
-    const { update: updatePagamentoTable } = await import('./services/database');
-    // Oops, can't import inside function easily without async mess or top level import.
-    // But we can use db.update directly.
-
     try {
-      await db.update('pagamentos', pagamentoId, { status, data_pagamento: status === 'Pago' ? new Date().toISOString() : null });
+      const dataPagamento = status === 'Pago' ? new Date().toISOString().slice(0, 10) : null;
+      const pagamento = contratos.find(c => c.id === contratoId)?.pagamentos.find(p => p.id === pagamentoId);
+      await db.update('pagamentos', pagamentoId, {
+        status,
+        data_pagamento: dataPagamento,
+        data_liquidacao: dataPagamento,
+        valor_liquidado: dataPagamento ? pagamento?.valor || null : null,
+      });
       // Then refresh contracts? useResource exposes refresh?
       // We called 'updateContrato' which updates local state.
       // But here we update a sub-resource.
@@ -613,7 +748,13 @@ const InnerApp: React.FC = () => {
 
       const contrato = contratos.find(c => c.id === contratoId);
       if (contrato) {
-        const updatedPagamentos = contrato.pagamentos.map(p => p.id === pagamentoId ? { ...p, status } : p);
+        const updatedPagamentos = contrato.pagamentos.map(p => p.id === pagamentoId ? {
+          ...p,
+          status,
+          data_pagamento: dataPagamento,
+          data_liquidacao: dataPagamento,
+          valor_liquidado: dataPagamento ? p.valor : null,
+        } : p);
         // Optimistic update
         setContratos(prev => prev.map(c => c.id === contratoId ? { ...c, pagamentos: updatedPagamentos } : c));
       }
@@ -624,11 +765,19 @@ const InnerApp: React.FC = () => {
 
   const handleUpdatePagamentoValue = async (contratoId: number, pagamentoId: number, valor: number) => {
     try {
-      await db.update('pagamentos', pagamentoId, { valor });
+      const currentPagamento = contratos.find(c => c.id === contratoId)?.pagamentos.find(p => p.id === pagamentoId);
+      await db.update('pagamentos', pagamentoId, {
+        valor,
+        valor_liquidado: currentPagamento?.status === 'Pago' ? valor : currentPagamento?.valor_liquidado,
+      });
       
       const contrato = contratos.find(c => c.id === contratoId);
       if (contrato) {
-        const updatedPagamentos = contrato.pagamentos.map(p => p.id === pagamentoId ? { ...p, valor } : p);
+        const updatedPagamentos = contrato.pagamentos.map(p => p.id === pagamentoId ? {
+          ...p,
+          valor,
+          valor_liquidado: p.status === 'Pago' ? valor : p.valor_liquidado,
+        } : p);
         // Optimistic update
         setContratos(prev => prev.map(c => c.id === contratoId ? { ...c, pagamentos: updatedPagamentos } : c));
       }
@@ -726,23 +875,33 @@ const InnerApp: React.FC = () => {
         onSaveSettings={(newSettings) => setSettings(newSettings)}
         onExportData={() => {
           const allData = {
-            veiculos,
-            motoristas,
-            planos,
-            contratos,
-            pagamentos: contratos.flatMap(c => c.pagamentos),
-            manutencoes,
-            multas,
-            sinistros,
-            despesas,
-            documentos
+            metadata: {
+              schemaVersion: 2,
+              exportedAt: new Date().toISOString(),
+              kind: 'frota-facil-data-export',
+              warning: 'Esta exportação não substitui backup/PITR do banco e do Storage.'
+            },
+            settings,
+            data: {
+              veiculos,
+              motoristas,
+              planos,
+              contratos,
+              pagamentos: contratos.flatMap(c => c.pagamentos),
+              receitas,
+              despesas,
+              manutencoes,
+              multas,
+              sinistros,
+              documentos
+            }
           };
           const dataStr = JSON.stringify(allData, null, 2);
           const blob = new Blob([dataStr], { type: 'application/json' });
           const url = URL.createObjectURL(blob);
           const a = document.createElement('a');
           a.href = url;
-          a.download = `frotafacil_backup_${new Date().toISOString().split('T')[0]}.json`;
+          a.download = `frotafacil_exportacao_v2_${new Date().toISOString().split('T')[0]}.json`;
           document.body.appendChild(a);
           a.click();
           document.body.removeChild(a);
@@ -758,6 +917,7 @@ const InnerApp: React.FC = () => {
             setMultas([]);
             setSinistros([]);
             setDespesas([]);
+            setReceitas([]);
             setDocumentos([]);
             alert('Dados limpos com sucesso!');
           }

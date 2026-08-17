@@ -17,6 +17,22 @@ export type StatusPagamentoDespesa = "Paga" | "Em aberto";
 
 export type UserRole = 'admin' | 'gerente' | 'operacao';
 
+export type OrigemFinanceira = 'manual' | 'contrato' | 'venda_veiculo' | 'legado';
+
+export interface CamposFinanceiros {
+    data_competencia?: string;
+    data_vencimento?: string;
+    data_pagamento?: string | null;
+    data_liquidacao?: string | null;
+    valor_liquidado?: number | null;
+    origem?: OrigemFinanceira;
+    origem_competencia?: 'informada' | 'legado_inferido';
+    origem_liquidacao?: 'informada' | 'legado_inferido';
+    parcela_numero?: number;
+    parcelas_total?: number;
+    categoria_financeira_id?: number;
+}
+
 export interface Profile {
     id: string;
     email: string;
@@ -43,6 +59,7 @@ export interface Veiculo {
     valor_fipe: number;
     foto_url?: string;
     valor_venda?: number;
+    data_venda?: string;
     created_at?: string;
 }
 
@@ -65,7 +82,7 @@ export interface Plano {
     status: StatusGenerico;
 }
 
-export interface Pagamento {
+export interface Pagamento extends CamposFinanceiros {
     id: number;
     contrato_id?: number;
     vencimento: string;
@@ -92,7 +109,7 @@ export interface DocumentoAnexado {
     nome: string;
 }
 
-export interface Manutencao {
+export interface Manutencao extends CamposFinanceiros {
     id: number;
     veiculo_id?: number;
     veiculo_placa: string;
@@ -106,7 +123,7 @@ export interface Manutencao {
     parcelamento_id?: string;
 }
 
-export interface Multa {
+export interface Multa extends CamposFinanceiros {
     id: number;
     veiculo_id?: number;
     veiculo_placa: string;
@@ -125,7 +142,7 @@ export interface Sinistro {
     status: StatusSinistro;
 }
 
-export interface Despesa {
+export interface Despesa extends CamposFinanceiros {
     id: number;
     tipo: string;
     veiculo_placa?: string;
@@ -136,7 +153,7 @@ export interface Despesa {
     veiculo_id?: number;
 }
 
-export interface Receita {
+export interface Receita extends CamposFinanceiros {
     id: number;
     tipo: string;
     veiculo_placa?: string;

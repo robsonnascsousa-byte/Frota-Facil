@@ -36,7 +36,7 @@ const FipeLookup: React.FC<FipeLookupProps> = ({
             setLoading(true);
             setErro(null);
             try {
-                const data = await getMarcas(tipoVeiculo);
+                const data = await getMarcas(tipoVeiculo as TipoVeiculo);
                 setMarcas(data);
             } catch {
                 setErro('Erro ao carregar marcas. Verifique sua conexão.');
@@ -59,7 +59,7 @@ const FipeLookup: React.FC<FipeLookupProps> = ({
             setLoading(true);
             setErro(null);
             try {
-                const { modelos: data } = await getModelos(tipoVeiculo, marcaSelecionada);
+                const { modelos: data } = await getModelos(tipoVeiculo as TipoVeiculo, marcaSelecionada);
                 setModelos(data);
                 setModeloSelecionado('');
                 setAnos([]);
@@ -86,7 +86,7 @@ const FipeLookup: React.FC<FipeLookupProps> = ({
             setLoading(true);
             setErro(null);
             try {
-                const data = await getAnos(tipoVeiculo, marcaSelecionada, parseInt(modeloSelecionado));
+                const data = await getAnos(tipoVeiculo as TipoVeiculo, marcaSelecionada, parseInt(modeloSelecionado));
                 setAnos(data);
                 setAnoSelecionado('');
                 setValorFipe(null);
@@ -107,7 +107,7 @@ const FipeLookup: React.FC<FipeLookupProps> = ({
         setErro(null);
         try {
             const valor = await getValorFipe(
-                tipoVeiculo,
+                tipoVeiculo as TipoVeiculo,
                 marcaSelecionada,
                 parseInt(modeloSelecionado),
                 anoSelecionado

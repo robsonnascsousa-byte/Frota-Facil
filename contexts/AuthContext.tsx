@@ -65,17 +65,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
                 if (error) {
                     console.warn('[AuthContext] fetchRole error:', error.message);
-                    return 'admin';
+                    return 'operacao';
                 }
                 if (!data) {
                     console.log('[AuthContext] No profile data found');
-                    return 'admin';
+                    return 'operacao';
                 }
                 console.log('[AuthContext] fetchRole returning:', data.role);
-                return data.role || 'admin';
+                return data.role || 'operacao';
             } catch (err) {
                 console.error('[AuthContext] fetchRole error or timeout:', err);
-                return 'admin'; // Default to admin on failure to allow access
+                return 'operacao'; // Falha fechada: nunca eleva privilégio por indisponibilidade.
             }
         };
 
@@ -134,14 +134,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         };
     }, [isConfigured]);
 
-    const signUp = async (email: string, password: string, nome?: string, role?: string) => {
+    const signUp = async (email: string, password: string, nome?: string, _role?: string) => {
         const { error } = await supabase.auth.signUp({
             email,
             password,
             options: {
                 data: {
-                    nome,
-                    role: role || 'operacao'
+                    nome
                 }
             }
         });
