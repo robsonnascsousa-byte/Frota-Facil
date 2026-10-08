@@ -1,0 +1,6 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": { "types": [], "allowJs": false },
+  "exclude": [],
+  "include": ["./*.ts", "../../../types/auction.ts"]
+}

@@ -23,6 +23,7 @@ interface SearchResult {
 const PAGES: Array<{ page: Page; label: string }> = [
     { page: 'dashboard', label: 'Dashboard' },
     { page: 'veiculos', label: 'Veículos' },
+    { page: 'leiloes', label: 'Leilões e revenda' },
     { page: 'motoristas', label: 'Motoristas' },
     { page: 'planos', label: 'Planos' },
     { page: 'contratos', label: 'Contratos' },

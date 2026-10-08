@@ -43,6 +43,7 @@ const Icon: React.FC<{ d: string }> = ({ d }) => (
 );
 
 const ICONS: { [key in Page]: React.ReactNode } = {
+  leiloes: <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="m14 3 7 7-3 3-7-7zM5 12l7 7-3 3-7-7zM10 10l4 4M3 21l8-8" /></svg>,
   dashboard: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg>,
   veiculos: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M12.293 4.293a1 1 0 011.414 0l4 4a1 1 0 01-1.414 1.414L13 6.414V16a1 1 0 11-2 0V6.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4zM8 4a1 1 0 011 1v10a1 1 0 11-2 0V5a1 1 0 011-1z" clipRule="evenodd" /></svg>,
   motoristas: <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015.537 4.871A6.987 6.987 0 005 21v-1a6 6 0 016-6c.34 0 .673.024 1 .071A5 5 0 016 11z" /></svg>,
@@ -94,6 +95,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const navItems: { page: Page, label: string }[] = [
     { page: 'dashboard', label: 'Dashboard' },
     { page: 'veiculos', label: 'Veículos' },
+    { page: 'leiloes', label: 'Leilões e revenda' },
     { page: 'motoristas', label: 'Motoristas' },
     { page: 'planos', label: 'Planos' },
     { page: 'contratos', label: 'Contratos' },

@@ -15,6 +15,10 @@ View your app in AI Studio: https://ai.studio/apps/drive/1gAFGXHyoKnHNh0KvQftsN1
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+2. Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env.local` (see `.env.example`).
 3. Run the app:
    `npm run dev`
+
+## Leilões e revenda
+
+O módulo CarFlippingBR está integrado ao login, à frota e ao Financeiro. A migração e a função de IA precisam ser ativadas no Supabase conforme [o guia de integração](docs/LEILOES_INTEGRACAO.md). A chave Gemini fica nos secrets do servidor.

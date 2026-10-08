@@ -31,3 +31,6 @@ dist-ssr
 # Gemini
 .gemini
 .temp_ag_kit
+
+# Isolated validation dependencies and temporary UI fixtures
+.tmp/

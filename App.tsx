@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
 import Veiculos from './components/Veiculos';
@@ -23,6 +23,8 @@ import { Table, Header, Toast } from './components/ui';
 import { AppSettings, defaultSettings } from './types/settings';
 import * as db from './services/database';
 import { addDaysUtc, addMonthsClamped, isAssetSale, splitAmountInCents } from './utils/financial';
+
+const Leiloes = lazy(() => import('./components/Leiloes'));
 
 // Simple placeholder pages defined within App.tsx to reduce file count
 const DocumentosPage: React.FC<{ documentos: Documento[] }> = ({ documentos }) => (
@@ -807,6 +809,14 @@ const InnerApp: React.FC = () => {
   const renderContent = () => {
     switch (currentPage) {
       case 'dashboard': return <Dashboard veiculos={veiculos} contratos={contratos} documentos={documentos} despesas={despesas} manutencoes={manutencoes} receitas={receitas} multas={multas} />;
+      case 'leiloes': return <Suspense fallback={<p role="status">Carregando Leilões e revenda…</p>}><Leiloes
+        veiculos={veiculos}
+        despesas={despesas}
+        onAcquired={veiculo => setVeiculos(prev => [veiculo, ...prev.filter(v => v.id !== veiculo.id)])}
+        onUpdateVeiculo={handleUpdateVeiculo}
+        onAddDespesa={handleAddDespesa}
+        onNavigate={setCurrentPage}
+      /></Suspense>;
       case 'veiculos': return <Veiculos
         veiculos={veiculos}
         contratos={contratos}
