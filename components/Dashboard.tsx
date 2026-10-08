@@ -6,16 +6,23 @@ import FleetStrip from './FleetStrip';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import {
     calculateHistoricalCostFleetReturn,
+    calculateOverdueAmount,
+    calculateRecordedCashFlow,
     getCashAmount,
     getCashDate,
+    getBaseCategory,
     getCompetenceDate,
     getDueDate,
+    getFinancialToday,
     isAssetSale,
     isFinancingPrincipal,
     isPeriodMatch,
     isRecognizedByCutoff,
     isUnsplitFinancing,
+    sumCashInPeriod,
+    sumCashThroughCutoff,
 } from '../utils/financial';
+import { calculateVehicleCashRanking, matchesFinancialVehicle } from '../utils/dashboardFinancial';
 
 interface DashboardProps {
     veiculos: Veiculo[];
@@ -100,32 +107,17 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
     const locados = veiculosOperacionais.filter(v => v.status === 'Locado').length;
     const taxaOcupacao = totalVeiculos > 0 ? (locados / totalVeiculos * 100).toFixed(1) : 0;
 
-    const currentDate = new Date();
-    const currentYear = currentDate.getFullYear();
-    const currentMonth = currentDate.getMonth() + 1;
-    const receitaMes = [
+    const cutoff = getFinancialToday();
+    const [currentYear, currentMonth] = cutoff.split('-').map(Number);
+    const recebimentos = [
         ...contratos.flatMap(c => c.pagamentos || []),
         ...receitas,
-    ]
-        .filter(item => isPeriodMatch(getCashDate(item).date, currentYear, currentMonth))
-        .reduce((sum, item) => sum + getCashAmount(item), 0);
-
-    const custosMes = useMemo(() => {
-        const custosManuais = despesas
-            .filter(d => isPeriodMatch(getCashDate(d).date, currentYear, currentMonth))
-            .reduce((sum, d) => sum + getCashAmount(d), 0);
-
-        const custosManutencao = manutencoes
-            .filter(m => isPeriodMatch(getCashDate(m).date, currentYear, currentMonth))
-            .reduce((sum, m) => sum + getCashAmount(m), 0);
-
-        return custosManuais + custosManutencao;
-    }, [despesas, manutencoes]);
-
-
-    const inadimplencia = contratos.flatMap(c => c.pagamentos || [])
-        .filter(p => p.status === 'Atrasado')
-        .reduce((sum, p) => sum + p.valor, 0);
+    ];
+    const receitaMes = sumCashInPeriod(recebimentos, currentYear, currentMonth, cutoff);
+    const caixaAcumulado = calculateRecordedCashFlow(recebimentos, [...despesas, ...manutencoes, ...multas], cutoff);
+    const datasInferidas = [...recebimentos, ...despesas, ...manutencoes, ...multas]
+        .filter(item => getCashDate(item).inferred).length;
+    const inadimplencia = calculateOverdueAmount(recebimentos, cutoff);
 
     const { retornoAcumulado, resultadoAcumulado } = useMemo(() => {
         const receitaContratos = contratos.flatMap(c => c.pagamentos || [])
@@ -166,11 +158,10 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
             retornoAcumulado: retorno.returnRate === null ? null : retorno.returnRate * 100,
             resultadoAcumulado: retorno.result,
         };
-    }, [veiculos, contratos, receitas, despesas, manutencoes, multas]);
+    }, [veiculos, contratos, receitas, despesas, manutencoes, multas, cutoff]);
 
     const dataGraficoReceitaDespesa = useMemo(() => {
         const data: { name: string, ReceitaRealizada: number, ReceitaPrevista: number, DespesaRealizada: number, DespesaPrevista: number }[] = [];
-        const currentYear = new Date().getFullYear();
         const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
         for (let month = 1; month <= 12; month++) {
@@ -178,10 +169,12 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
             // Realizada: pagamentos de contratos com status 'Pago' + receitas manuais com status 'Pago'
             const receitaContratosRealizada = contratos.flatMap(c => c.pagamentos || [])
                 .filter(p => isPeriodMatch(getCashDate(p).date, currentYear, month))
+                .filter(p => isRecognizedByCutoff(getCashDate(p).date, cutoff))
                 .reduce((sum, p) => sum + getCashAmount(p), 0);
 
             const receitaManualRealizada = receitas
                 .filter(r => isPeriodMatch(getCashDate(r).date, currentYear, month))
+                .filter(r => isRecognizedByCutoff(getCashDate(r).date, cutoff))
                 .reduce((sum, r) => sum + getCashAmount(r), 0);
 
             // Prevista: pagamentos de contratos com status 'Em aberto' ou 'Atrasado' + receitas manuais com status 'Em aberto' ou 'Atrasado'
@@ -205,12 +198,13 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
 
             // --- Despesas ---
             // Realizada: despesas + manutenções com status 'Paga'
-            const despesaRealizada = [...despesas, ...manutencoes]
+            const despesaRealizada = [...despesas, ...manutencoes, ...multas]
                 .filter(d => isPeriodMatch(getCashDate(d).date, currentYear, month))
+                .filter(d => isRecognizedByCutoff(getCashDate(d).date, cutoff))
                 .reduce((sum, d) => sum + getCashAmount(d), 0);
 
             // Prevista: despesas + manutenções com status 'Em aberto'
-            const despesaPrevista = [...despesas, ...manutencoes]
+            const despesaPrevista = [...despesas, ...manutencoes, ...multas]
                 .filter(d => {
                     const parts = (getDueDate(d).date || d.data).split('-');
                     const dYear = parseInt(parts[0]);
@@ -228,7 +222,7 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
             });
         }
         return data;
-    }, [contratos, despesas, manutencoes, receitas]);
+    }, [contratos, despesas, manutencoes, receitas, multas, cutoff, currentYear]);
 
     const dataGraficoOcupacao = useMemo(() => {
         const data: { name: string, Ocupação: number }[] = [];
@@ -291,45 +285,14 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
 
     const documentosVencendo = documentos.filter(d => d.status === 'Próximo Vencimento' || d.status === 'Vencido');
 
-    const veiculosRentaveis = useMemo(() => {
-        const rentabilidade: { [key: number]: { veiculo: Veiculo, receita: number, custo: number } } = {};
+    const veiculosRentaveis = useMemo(() => calculateVehicleCashRanking({
+        veiculos, contratos, receitas, despesas, manutencoes, multas,
+    }, cutoff), [veiculos, contratos, receitas, despesas, manutencoes, multas, cutoff]);
 
-        veiculos.forEach(v => {
-            rentabilidade[v.id] = { veiculo: v, receita: 0, custo: 0 };
-        });
-
-        contratos.forEach(c => {
-            const pagamentos = c.pagamentos || [];
-            const receitaContrato = pagamentos
-                .filter(p => p.status === 'Pago')
-                .reduce((sum, p) => sum + p.valor, 0);
-            if (rentabilidade[c.veiculo_id]) {
-                rentabilidade[c.veiculo_id].receita += receitaContrato;
-            }
-        });
-
-        const todosCustos = [...manutencoes, ...despesas];
-        todosCustos.forEach(custo => {
-            const veiculo = veiculos.find(v => v.placa === (custo as any).veiculo_placa);
-            if (veiculo && rentabilidade[veiculo.id]) {
-                rentabilidade[veiculo.id].custo += custo.valor;
-            }
-        });
-
-        return Object.values(rentabilidade)
-            .map(item => ({
-                veiculo: `${item.veiculo.modelo} (${item.veiculo.placa})`,
-                lucro: item.receita - item.custo
-            }))
-            .sort((a, b) => b.lucro - a.lucro)
-            .slice(0, 5);
-    }, [veiculos, contratos, despesas, manutencoes]);
-
-    // Funnel chart data: operational expenses by category
-    // Helper to strip installment suffixes like "(1/12)" or "(3/3)" from tipo names
-    const getBaseCategory = (tipo: string): string => {
-        return tipo.replace(/\s*\(\d+\/\d+\)\s*$/, '').trim() || 'Outros';
-    };
+    const selectedFunnelVehicle = veiculos.find(v => v.placa === funnelVeiculoFilter);
+    const matchesFunnelVehicle = (item: { veiculo_id?: number; veiculo_placa?: string }) =>
+        funnelVeiculoFilter === 'todos' || (selectedFunnelVehicle
+            ? matchesFinancialVehicle(item, selectedFunnelVehicle) : item.veiculo_placa === funnelVeiculoFilter);
 
     const funnelData = useMemo(() => {
         // Rampa de intensidade da marca: o maior gasto e o vermelho pleno e os
@@ -346,32 +309,28 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
         ];
 
         // Filter despesas, manutencoes and multas by vehicle if needed
-        let filteredDespesas = despesas.filter(d => d.status === 'Paga');
-        let filteredManutencoes = manutencoes.filter(m => m.status === 'Paga');
-        let filteredMultas = multas.filter(m => m.status === 'Paga');
-
-        if (funnelVeiculoFilter !== 'todos') {
-            filteredDespesas = filteredDespesas.filter(d => d.veiculo_placa === funnelVeiculoFilter);
-            filteredManutencoes = filteredManutencoes.filter(m => m.veiculo_placa === funnelVeiculoFilter);
-            filteredMultas = filteredMultas.filter(m => m.veiculo_placa === funnelVeiculoFilter);
-        }
+        const isPaidByCutoff = (item: Parameters<typeof getCashDate>[0]) =>
+            isRecognizedByCutoff(getCashDate(item).date, cutoff);
+        const filteredDespesas = despesas.filter(isPaidByCutoff).filter(matchesFunnelVehicle);
+        const filteredManutencoes = manutencoes.filter(isPaidByCutoff).filter(matchesFunnelVehicle);
+        const filteredMultas = multas.filter(isPaidByCutoff).filter(matchesFunnelVehicle);
 
         // Group despesas by BASE tipo (strip installment suffixes)
         const categorias: { [key: string]: number } = {};
 
         filteredDespesas.forEach(d => {
             const tipo = getBaseCategory(d.tipo || 'Outros');
-            categorias[tipo] = (categorias[tipo] || 0) + d.valor;
+            categorias[tipo] = (categorias[tipo] || 0) + getCashAmount(d);
         });
 
         // Manutenções grouped under "Manutenção"
-        const totalManutencao = filteredManutencoes.reduce((sum, m) => sum + m.valor, 0);
+        const totalManutencao = filteredManutencoes.reduce((sum, m) => sum + getCashAmount(m), 0);
         if (totalManutencao > 0) {
             categorias['Manutenção'] = (categorias['Manutenção'] || 0) + totalManutencao;
         }
 
         // Multas grouped under "Multas"
-        const totalMultas = filteredMultas.reduce((sum, m) => sum + m.valor, 0);
+        const totalMultas = filteredMultas.reduce((sum, m) => sum + getCashAmount(m), 0);
         if (totalMultas > 0) {
             categorias['Multas'] = (categorias['Multas'] || 0) + totalMultas;
         }
@@ -388,25 +347,16 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                 ...item,
                 fill: FUNNEL_COLORS[index % FUNNEL_COLORS.length],
             }));
-    }, [despesas, manutencoes, multas, funnelVeiculoFilter]);
+    }, [despesas, manutencoes, multas, funnelVeiculoFilter, veiculos, cutoff]);
 
     const totalFunnelGastos = useMemo(() => funnelData.reduce((sum, d) => sum + d.value, 0), [funnelData]);
 
     // Calculate total revenue (receitas + contratos pagamentos) for funnel proportions
     const totalFunnelReceita = useMemo(() => {
-        let filteredReceitas = receitas.filter(r => r.status === 'Pago');
-        let filteredPagamentos = contratos.flatMap(c => c.pagamentos || []).filter(p => p.status === 'Pago');
-
-        if (funnelVeiculoFilter !== 'todos') {
-            filteredReceitas = filteredReceitas.filter(r => r.veiculo_placa === funnelVeiculoFilter);
-            // Filter pagamentos by contrato's vehicle
-            const contratosDoVeiculo = contratos.filter(c => c.veiculo_placa === funnelVeiculoFilter).map(c => c.id);
-            filteredPagamentos = filteredPagamentos.filter(p => contratosDoVeiculo.includes((p as any).contrato_id));
-        }
-
-        return filteredReceitas.reduce((sum, r) => sum + r.valor, 0)
-             + filteredPagamentos.reduce((sum, p) => sum + p.valor, 0);
-    }, [receitas, contratos, funnelVeiculoFilter]);
+        const filteredReceitas = receitas.filter(matchesFunnelVehicle);
+        const filteredPagamentos = contratos.filter(matchesFunnelVehicle).flatMap(c => c.pagamentos || []);
+        return sumCashThroughCutoff([...filteredReceitas, ...filteredPagamentos], cutoff);
+    }, [receitas, contratos, funnelVeiculoFilter, veiculos, cutoff]);
 
     // Identify categories that exceed 45% of revenue
     const funnelAlerts = useMemo(() => {
@@ -442,12 +392,19 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
             {/* KPIs de fundo — contexto, não manchete */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <Card title="Receita do Mês" value={formatCurrency(receitaMes)} description="Receita confirmada" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v.01" /></svg>} />
-                <Card title="Inadimplência" value={formatCurrency(inadimplencia)} description="Valor em aberto" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>} tone={inadimplencia > 0 ? "alert" : "neutral"} />
-                <Card title="Retorno acumulado da frota" value={retornoAcumulado === null ? 'N/D' : `${retornoAcumulado.toFixed(1)}%`} description="Resultado pelo custo histórico ÷ aquisições, sem anualização" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>} />
-                <Card title="Resultado acumulado da frota" value={formatCurrency(resultadoAcumulado)} description="Operação + ganho/perda realizados nas vendas" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
+                <Card title="Inadimplência" value={formatCurrency(inadimplencia)} description="Vencidos ainda não pagos" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>} tone={inadimplencia > 0 ? "alert" : "neutral"} />
+                <Card title="Retorno acumulado da frota" value={retornoAcumulado === null ? 'N/D' : `${retornoAcumulado.toFixed(1)}%`} description="Por competência: inclui valores a receber. Resultado ÷ aquisições, sem anualização" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>} />
+                <Card title="Resultado acumulado da frota" value={formatCurrency(resultadoAcumulado)} description="Por competência: receitas menos custos incorridos e ganho/perda nas vendas" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
             </div>
 
             {/* Charts Row 1 */}
+            <section aria-label="Caixa acumulado registrado" className="mb-6 p-5 rounded-lg border border-bone/10 bg-gunmetal/40">
+                <p className="text-sm font-semibold text-bone">Saldo de caixa acumulado registrado</p>
+                <p className="text-2xl font-bold tabular-nums text-bone">{formatCurrency(caixaAcumulado.balance)}</p>
+                <p className="text-sm text-bone/70">Recebido: {formatCurrency(caixaAcumulado.received)} · Pago: {formatCurrency(caixaAcumulado.paid)}</p>
+                <p className="mt-2 text-xs text-bone/60">Só valores liquidados até hoje, incluindo vendas e financiamentos registrados. Aquisições cadastradas na frota e saldo bancário inicial não entram neste saldo.</p>
+                {datasInferidas > 0 && <p className="mt-2 text-xs text-bone/60">{datasInferidas} lançamento(s) legado(s) pago(s) usam data inferida; confira a liquidação no Financeiro.</p>}
+            </section>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6">
                 {/* Revenue vs Expenses Bar Chart */}
                 <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700">
@@ -635,16 +592,16 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
                     <div className="flex items-center justify-between mb-4">
                         <div>
                             <h3 className="font-semibold text-slate-800 dark:text-white">Top 5 Veículos Rentáveis</h3>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">Lucro líquido por veículo</p>
+                            <p className="text-sm text-slate-500 dark:text-slate-400">Receitas operacionais recebidas menos gastos pagos</p>
                         </div>
                         <span className="text-xs px-2 py-1 rounded" style={{ background: 'rgba(255,42,42,0.12)', color: '#ff2a2a', fontFamily: '"JetBrains Mono", monospace', fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-                            Lucro total
+                            Saldo registrado
                         </span>
                     </div>
                     <div className="space-y-3">
                         {veiculosRentaveis.map((v, i) => {
                             const maxLucro = Math.max(...veiculosRentaveis.map(x => x.lucro));
-                            const percentage = maxLucro > 0 ? (v.lucro / maxLucro) * 100 : 0;
+                            const percentage = maxLucro > 0 ? Math.max(0, (v.lucro / maxLucro) * 100) : 0;
                             // Cada degrau do ranking carrega sua própria cor de texto:
                             // fundo claro pede tinta preta, fundo escuro pede bone.
                             const rank = RANK_COLORS[i] ?? RANK_COLORS[RANK_COLORS.length - 1];
@@ -679,7 +636,7 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
             <div className="bg-white dark:bg-slate-800 p-4 sm:p-6 rounded-xl shadow-sm border border-slate-100 dark:border-slate-700 mb-6">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
                     <div>
-                        <h3 className="font-semibold text-slate-800 dark:text-white">Funil de Gastos Operacionais</h3>
+                        <h3 className="font-semibold text-slate-800 dark:text-white">Gastos pagos por categoria</h3>
                         <p className="text-sm text-slate-500 dark:text-slate-400">
                             Distribuição dos custos por categoria
                             {funnelVeiculoFilter !== 'todos' && (

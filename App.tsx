@@ -22,7 +22,8 @@ import { Page, Veiculo, Plano, Manutencao, Multa, Sinistro, Documento, Motorista
 import { Table, Header, Toast } from './components/ui';
 import { AppSettings, defaultSettings } from './types/settings';
 import * as db from './services/database';
-import { addDaysUtc, addMonthsClamped, isAssetSale, splitAmountInCents } from './utils/financial';
+import { addDaysUtc, addMonthsClamped, getFinancialToday, isAssetSale, splitAmountInCents } from './utils/financial';
+import { mergeContractPayment, removeContractPayment } from './utils/contractPayments';
 
 // Simple placeholder pages defined within App.tsx to reduce file count
 const DocumentosPage: React.FC<{ documentos: Documento[] }> = ({ documentos }) => (
@@ -160,7 +161,7 @@ const InnerApp: React.FC = () => {
       await updateVeiculo({ ...updatedVeiculo, data_venda: previousVeiculo.data_venda });
       return;
     }
-    const today = new Date().toISOString().split('T')[0];
+    const today = getFinancialToday();
     const isNewSale = updatedVeiculo.status === 'Vendido' && previousVeiculo?.status !== 'Vendido';
     const vehicleToSave = isNewSale ? { ...updatedVeiculo, data_venda: today } : updatedVeiculo;
     if (!isNewSale) {
@@ -515,7 +516,7 @@ const InnerApp: React.FC = () => {
   const handleUpdateManutencaoStatus = async (manutencaoId: number, status: StatusPagamentoDespesa) => {
     const m = manutencoes.find(x => x.id === manutencaoId);
     if (m) {
-      const liquidatedAt = status === 'Paga' ? new Date().toISOString().slice(0, 10) : null;
+      const liquidatedAt = status === 'Paga' ? getFinancialToday() : null;
       await updateManutencao({ ...m, status, data_pagamento: liquidatedAt, data_liquidacao: liquidatedAt, valor_liquidado: liquidatedAt ? m.valor : null });
     }
   };
@@ -547,7 +548,7 @@ const InnerApp: React.FC = () => {
   const handleUpdateMultaStatus = async (multaId: number, status: Multa['status']) => {
     const m = multas.find(x => x.id === multaId);
     if (m) {
-      const liquidatedAt = status === 'Paga' ? new Date().toISOString().slice(0, 10) : null;
+      const liquidatedAt = status === 'Paga' ? getFinancialToday() : null;
       await updateMulta({ ...m, status, data_pagamento: liquidatedAt, data_liquidacao: liquidatedAt, valor_liquidado: liquidatedAt ? m.valor : null });
     }
   };
@@ -639,7 +640,7 @@ const InnerApp: React.FC = () => {
   const handleUpdateDespesaStatus = async (despesaId: number, status: StatusPagamentoDespesa) => {
     const d = despesas.find(x => x.id === despesaId);
     if (d) {
-      const liquidatedAt = status === 'Paga' ? new Date().toISOString().slice(0, 10) : null;
+      const liquidatedAt = status === 'Paga' ? getFinancialToday() : null;
       await updateDespesa({ ...d, status, data_pagamento: liquidatedAt, data_liquidacao: liquidatedAt, valor_liquidado: liquidatedAt ? d.valor : null });
     }
   };
@@ -705,14 +706,17 @@ const InnerApp: React.FC = () => {
 
   const handleUpdateReceitaStatus = async (receitaId: number, status: StatusPagamento) => {
     const r = receitas.find(x => x.id === receitaId);
+    if (!r) throw new Error('Recebimento não encontrado. Atualize a página e tente novamente.');
     if (r) {
-      const liquidatedAt = status === 'Pago' ? new Date().toISOString().slice(0, 10) : null;
+      const liquidatedAt = status === 'Pago' ? getFinancialToday() : null;
       await updateReceita({ ...r, status, data_pagamento: liquidatedAt, data_liquidacao: liquidatedAt, valor_liquidado: liquidatedAt ? r.valor : null });
     }
   };
 
   const handleUpdateReceitaValue = async (receitaId: number, valor: number) => {
+    if (!Number.isFinite(valor) || valor < 0) throw new Error('Informe um valor válido para o recebimento.');
     const r = receitas.find(x => x.id === receitaId);
+    if (!r) throw new Error('Recebimento não encontrado. Atualize a página e tente novamente.');
     if (r) {
       if (isAssetSale(r.tipo, r.origem)) throw new Error('O valor de uma parcela de venda é imutável.');
       await updateReceita({ ...r, valor, valor_liquidado: r.status === 'Pago' ? valor : r.valor_liquidado });
@@ -720,87 +724,32 @@ const InnerApp: React.FC = () => {
   };
 
   const handleUpdatePagamentoStatus = async (contratoId: number, pagamentoId: number, status: StatusPagamento) => {
-    // This is hierarchical (pagamento inside contrato or separate table?)
-    // services/database has 'getPagamentosByContrato' but types.ts has pagamentos[] inside Contrato.
-    // However schema has 'pagamentos' table.
-    // We need to update the 'pagamentos' table directly if possible, or update the contract json?
-    // Since database.ts uses generic update, if 'pagamentos' is a TABLE, we should use 'update<Pagamento>'.
-    // But App.tsx doesn't have useResource('pagamentos')?
-    // Wait, 'Contratos' in types.ts HAS 'pagamentos'.
-    // If we are strictly relational, 'contratos' fetch should JOIN pagamentos.
-    // Our services/database.getContratosCompletos does join.
-    // The update logic in App.tsx was in-memory.
-    // For Supabase, we should update the 'pagamentos' table row.
-
-    try {
-      const dataPagamento = status === 'Pago' ? new Date().toISOString().slice(0, 10) : null;
-      const pagamento = contratos.find(c => c.id === contratoId)?.pagamentos.find(p => p.id === pagamentoId);
-      await db.update('pagamentos', pagamentoId, {
-        status,
-        data_pagamento: dataPagamento,
-        data_liquidacao: dataPagamento,
-        valor_liquidado: dataPagamento ? pagamento?.valor || null : null,
-      });
-      // Then refresh contracts? useResource exposes refresh?
-      // We called 'updateContrato' which updates local state.
-      // But here we update a sub-resource.
-      // We should ideally reload contracts or update local state manually.
-
-      const contrato = contratos.find(c => c.id === contratoId);
-      if (contrato) {
-        const updatedPagamentos = contrato.pagamentos.map(p => p.id === pagamentoId ? {
-          ...p,
-          status,
-          data_pagamento: dataPagamento,
-          data_liquidacao: dataPagamento,
-          valor_liquidado: dataPagamento ? p.valor : null,
-        } : p);
-        // Optimistic update
-        setContratos(prev => prev.map(c => c.id === contratoId ? { ...c, pagamentos: updatedPagamentos } : c));
-      }
-    } catch (e) {
-      console.error(e);
-    }
+    const pagamento = contratos.find(c => c.id === contratoId)?.pagamentos.find(p => p.id === pagamentoId);
+    if (!pagamento) throw new Error('Recebimento não encontrado. Atualize a página e tente novamente.');
+    const dataPagamento = status === 'Pago' ? getFinancialToday() : null;
+    const savedPayment = await db.update<Pagamento>('pagamentos', pagamentoId, {
+      status,
+      data_pagamento: dataPagamento,
+      data_liquidacao: dataPagamento,
+      valor_liquidado: dataPagamento ? pagamento.valor : null,
+    });
+    setContratos(prev => mergeContractPayment(prev, contratoId, savedPayment));
   };
 
   const handleUpdatePagamentoValue = async (contratoId: number, pagamentoId: number, valor: number) => {
-    try {
-      const currentPagamento = contratos.find(c => c.id === contratoId)?.pagamentos.find(p => p.id === pagamentoId);
-      await db.update('pagamentos', pagamentoId, {
-        valor,
-        valor_liquidado: currentPagamento?.status === 'Pago' ? valor : currentPagamento?.valor_liquidado,
-      });
-      
-      const contrato = contratos.find(c => c.id === contratoId);
-      if (contrato) {
-        const updatedPagamentos = contrato.pagamentos.map(p => p.id === pagamentoId ? {
-          ...p,
-          valor,
-          valor_liquidado: p.status === 'Pago' ? valor : p.valor_liquidado,
-        } : p);
-        // Optimistic update
-        setContratos(prev => prev.map(c => c.id === contratoId ? { ...c, pagamentos: updatedPagamentos } : c));
-      }
-    } catch (e) {
-      console.error(e);
-      alert('Erro ao atualizar valor da parcela.');
-    }
+    if (!Number.isFinite(valor) || valor < 0) throw new Error('Informe um valor válido para o recebimento.');
+    const currentPagamento = contratos.find(c => c.id === contratoId)?.pagamentos.find(p => p.id === pagamentoId);
+    if (!currentPagamento) throw new Error('Recebimento não encontrado. Atualize a página e tente novamente.');
+    const savedPayment = await db.update<Pagamento>('pagamentos', pagamentoId, {
+      valor,
+      valor_liquidado: currentPagamento.status === 'Pago' ? valor : currentPagamento.valor_liquidado,
+    });
+    setContratos(prev => mergeContractPayment(prev, contratoId, savedPayment));
   };
 
   const handleDeletePagamento = async (contratoId: number, pagamentoId: number) => {
-    try {
-      await db.remove('pagamentos', pagamentoId);
-      
-      const contrato = contratos.find(c => c.id === contratoId);
-      if (contrato) {
-        const updatedPagamentos = contrato.pagamentos.filter(p => p.id !== pagamentoId);
-        // Optimistic update
-        setContratos(prev => prev.map(c => c.id === contratoId ? { ...c, pagamentos: updatedPagamentos } : c));
-      }
-    } catch (e) {
-      console.error(e);
-      alert('Erro ao excluir parcela do contrato.');
-    }
+    await db.remove('pagamentos', pagamentoId);
+    setContratos(prev => removeContractPayment(prev, contratoId, pagamentoId));
   };
 
 
@@ -840,6 +789,7 @@ const InnerApp: React.FC = () => {
         despesasManuais={despesas}
         receitasManuais={receitas}
         manutencoes={manutencoes}
+        multas={multas}
         veiculos={veiculos}
         onAddDespesa={handleAddDespesa}
         onDeleteDespesa={handleDeleteDespesa}

@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from 'react';
-import { Contrato, Despesa, Receita, Pagamento, Manutencao, StatusPagamentoDespesa, StatusPagamento, Veiculo } from '../types';
+import React, { useMemo, useRef, useState } from 'react';
+import { Contrato, Despesa, Receita, Pagamento, Manutencao, Multa, StatusPagamentoDespesa, StatusPagamento, Veiculo } from '../types';
 import { Table, Header, Card, Modal } from './ui';
 import { formatCurrency, formatDate } from '../utils/formatters';
-import { getBaseCategory, getCashAmount, getCashDate, getDueDate, isAssetSale as isVehicleSale, isPeriodMatch } from '../utils/financial';
+import { getBaseCategory, getCashDate, getDueDate, getFinancialToday, isAssetSale as isVehicleSale, sumCashInPeriod } from '../utils/financial';
 
 interface ContasAReceber {
     id: string;
@@ -31,7 +31,7 @@ const initialFormState = {
     tipo: 'Outros',
     veiculo_placa: '',
     veiculo_id: null as number | null,
-    data: new Date().toISOString().split('T')[0],
+    data: getFinancialToday(),
     valor: 0,
     parcelas: 1,
     frequencia: 'mensal' as 'mensal' | 'semanal',
@@ -43,6 +43,7 @@ interface FinanceiroProps {
     despesasManuais: Despesa[];
     receitasManuais: Receita[];
     manutencoes: Manutencao[];
+    multas: Multa[];
     veiculos: Veiculo[];
     onAddDespesa: (despesa: Omit<Despesa, 'id' | 'status'>, parcelas: number, frequencia: 'mensal' | 'semanal') => Promise<void>;
     onDeleteDespesa: (id: number) => Promise<void>;
@@ -62,6 +63,7 @@ const Financeiro: React.FC<FinanceiroProps> = ({
     despesasManuais,
     receitasManuais,
     manutencoes,
+    multas,
     veiculos,
     onAddDespesa,
     onDeleteDespesa,
@@ -81,12 +83,32 @@ const Financeiro: React.FC<FinanceiroProps> = ({
     const [itemToDelete, setItemToDelete] = useState<{ id: string, tipo: string, valor: number, category: 'receita' | 'despesa' | 'pagamento', contratoId?: number } | null>(null);
     const [itemToEdit, setItemToEdit] = useState<{ id: string, tipo: string, valor: number, category: 'receita' | 'pagamento', contratoId?: number } | null>(null);
     const [newEditValue, setNewEditValue] = useState<number>(0);
+    const pendingRef = useRef(new Set<string>());
+    const [pending, setPending] = useState(new Set<string>());
+    const [mutationError, setMutationError] = useState<string | null>(null);
+    const runMutation = async (key: string, action: () => Promise<void>) => {
+        if (pendingRef.current.has(key)) return false;
+        pendingRef.current.add(key);
+        setPending(new Set(pendingRef.current));
+        setMutationError(null);
+        try {
+            await action();
+            return true;
+        } catch (error) {
+            setMutationError(error instanceof Error ? error.message : 'Não foi possível salvar a alteração. Tente novamente.');
+            return false;
+        } finally {
+            pendingRef.current.delete(key);
+            setPending(new Set(pendingRef.current));
+        }
+    };
     const inferredCashDates = useMemo(() => [
         ...contratos.flatMap(c => c.pagamentos || []),
         ...receitasManuais,
         ...despesasManuais,
         ...manutencoes,
-    ].filter(item => getCashDate(item).inferred).length, [contratos, receitasManuais, despesasManuais, manutencoes]);
+        ...multas,
+    ].filter(item => getCashDate(item).inferred).length, [contratos, receitasManuais, despesasManuais, manutencoes, multas]);
 
     const contasAReceber = useMemo<ContasAReceber[]>(() => {
         const pagamentosContratos: ContasAReceber[] = contratos.flatMap(contrato =>
@@ -139,28 +161,22 @@ const Financeiro: React.FC<FinanceiroProps> = ({
 
 
     const { receitaTotalMes, custosTotaisMes, lucroBrutoMes } = useMemo(() => {
-        const currentDate = new Date();
-        const currentMonth = currentDate.getMonth() + 1; // 1-12
-        const currentYear = currentDate.getFullYear();
+        const [currentYear, currentMonth] = getFinancialToday().split('-').map(Number);
 
         const recebimentos = [
             ...contratos.flatMap(c => c.pagamentos || []),
             ...receitasManuais,
         ];
-        const pagamentos = [...despesasManuais, ...manutencoes];
-        const receita = recebimentos
-            .filter(item => isPeriodMatch(getCashDate(item).date, currentYear, currentMonth))
-            .reduce((sum, item) => sum + getCashAmount(item), 0);
-        const custos = pagamentos
-            .filter(item => isPeriodMatch(getCashDate(item).date, currentYear, currentMonth))
-            .reduce((sum, item) => sum + getCashAmount(item), 0);
+        const pagamentos = [...despesasManuais, ...manutencoes, ...multas];
+        const receita = sumCashInPeriod(recebimentos, currentYear, currentMonth);
+        const custos = sumCashInPeriod(pagamentos, currentYear, currentMonth);
 
         return {
             receitaTotalMes: receita,
             custosTotaisMes: custos,
             lucroBrutoMes: receita - custos
         };
-    }, [contratos, receitasManuais, despesasManuais, manutencoes]);
+    }, [contratos, receitasManuais, despesasManuais, manutencoes, multas]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value, type } = e.target;
@@ -208,6 +224,7 @@ const Financeiro: React.FC<FinanceiroProps> = ({
     };
 
     const handleDeleteClick = (item: ContasAReceber | ContaAPagar, category: 'receita' | 'despesa' | 'pagamento') => {
+        setMutationError(null);
         setItemToDelete({
             id: item.id,
             tipo: item.tipo,
@@ -218,6 +235,7 @@ const Financeiro: React.FC<FinanceiroProps> = ({
     };
 
     const handleEditClick = (item: ContasAReceber) => {
+        setMutationError(null);
         setItemToEdit({
             id: item.id,
             tipo: item.tipo,
@@ -228,31 +246,32 @@ const Financeiro: React.FC<FinanceiroProps> = ({
         setNewEditValue(item.valor);
     };
 
-    const confirmEdit = (e: React.FormEvent) => {
+    const confirmEdit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!itemToEdit) return;
 
         const originalId = parseInt(itemToEdit.id.split('-')[1]);
-        if (itemToEdit.category === 'receita') {
-            onUpdateReceitaValue(originalId, newEditValue);
-        } else if (itemToEdit.category === 'pagamento' && itemToEdit.contratoId) {
-            onUpdatePagamentoValue(itemToEdit.contratoId, originalId, newEditValue);
-        }
-        setItemToEdit(null);
+        const saved = await runMutation(itemToEdit.id, async () => {
+            if (!Number.isFinite(newEditValue) || newEditValue < 0) throw new Error('Informe um valor válido para o recebimento.');
+            if (itemToEdit.category === 'receita') {
+                await onUpdateReceitaValue(originalId, newEditValue);
+            } else if (itemToEdit.contratoId != null) {
+                await onUpdatePagamentoValue(itemToEdit.contratoId, originalId, newEditValue);
+            }
+        });
+        if (saved) setItemToEdit(null);
     };
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
         if (!itemToDelete) return;
 
         const originalId = parseInt(itemToDelete.id.split('-')[1]);
-        if (itemToDelete.category === 'despesa') {
-            onDeleteDespesa(originalId);
-        } else if (itemToDelete.category === 'receita') {
-            onDeleteReceita(originalId);
-        } else if (itemToDelete.category === 'pagamento' && itemToDelete.contratoId) {
-            onDeletePagamento(itemToDelete.contratoId, originalId);
-        }
-        setItemToDelete(null);
+        const saved = await runMutation(itemToDelete.id, async () => {
+            if (itemToDelete.category === 'despesa') await onDeleteDespesa(originalId);
+            else if (itemToDelete.category === 'receita') await onDeleteReceita(originalId);
+            else if (itemToDelete.contratoId != null) await onDeletePagamento(itemToDelete.contratoId, originalId);
+        });
+        if (saved) setItemToDelete(null);
     };
 
     const getStatusColor = (status: string) => {
@@ -269,10 +288,11 @@ const Financeiro: React.FC<FinanceiroProps> = ({
     return (
         <>
             <Header title="Financeiro" description="Fluxo de caixa realizado por liquidação e previsto por vencimento." />
+            {mutationError && !itemToEdit && !itemToDelete && <p role="alert" className="mb-4 text-red-line">{mutationError}</p>}
 
             {inferredCashDates > 0 && (
                 <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-                    {inferredCashDates} lançamento(s) legado(s) pago(s) não possuem data de liquidação; o sistema usa o vencimento como data inferida.
+                    {inferredCashDates} lançamento(s) legado(s) pago(s) não possuem data de liquidação; o sistema usa a data histórica disponível como data inferida.
                 </div>
             )}
 
@@ -283,6 +303,7 @@ const Financeiro: React.FC<FinanceiroProps> = ({
             </div>
 
             <div>
+                <p className="mb-3 text-xs text-bone/60">Os totais de pagamentos incluem despesas, manutenções e multas liquidadas. As multas são gerenciadas em Multas &amp; Sinistros.</p>
                 <div className="border-b border-slate-200">
                     <nav className="-mb-px flex space-x-8" aria-label="Tabs">
                         <button
@@ -337,11 +358,13 @@ const Financeiro: React.FC<FinanceiroProps> = ({
                                                     const newStatus = e.target.value as StatusPagamento;
                                                     const originalId = parseInt(item.id.split('-')[1]);
                                                     if (item.isManual) {
-                                                        onUpdateReceitaStatus(originalId, newStatus);
+                                                    void runMutation(item.id, () => onUpdateReceitaStatus(originalId, newStatus));
                                                     } else {
-                                                        onUpdatePagamentoStatus(item.contratoId!, originalId, newStatus);
+                                                        void runMutation(item.id, () => onUpdatePagamentoStatus(item.contratoId!, originalId, newStatus));
                                                     }
                                                 }}
+                                                disabled={pending.has(item.id)}
+                                                aria-label={`Status do recebimento ${item.id}`}
                                                 className={`px-2.5 py-1 text-xs font-bold rounded-full border-none appearance-none cursor-pointer uppercase tracking-wider focus:ring-2 focus:ring-offset-2 focus:ring-[#ff2a2a] ${getStatusColor(item.status)}`}
                                                 onClick={(e) => e.stopPropagation()}
                                             >
@@ -361,12 +384,14 @@ const Financeiro: React.FC<FinanceiroProps> = ({
                                                     <>
                                                         <button
                                                             onClick={() => handleEditClick(item)}
+                                                            disabled={pending.has(item.id)}
                                                             className="font-medium text-sm transition-colors" style={{ color: '#f5f1ea' }}
                                                         >
                                                             Editar
                                                         </button>
                                                         <button
                                                             onClick={() => handleDeleteClick(item, item.isManual ? 'receita' : 'pagamento')}
+                                                            disabled={pending.has(item.id)}
                                                             className="font-medium text-sm transition-colors" style={{ color: '#ff2a2a' }}
                                                         >
                                                             Excluir
@@ -417,11 +442,13 @@ const Financeiro: React.FC<FinanceiroProps> = ({
                                                     const newStatus = e.target.value as StatusPagamentoDespesa;
                                                     const originalId = parseInt(item.id.split('-')[1]);
                                                     if (item.isManual) {
-                                                        onUpdateDespesaStatus(originalId, newStatus);
+                                                        void runMutation(item.id, () => onUpdateDespesaStatus(originalId, newStatus));
                                                     } else {
-                                                        onUpdateManutencaoStatus(originalId, newStatus);
+                                                        void runMutation(item.id, () => onUpdateManutencaoStatus(originalId, newStatus));
                                                     }
                                                 }}
+                                                disabled={pending.has(item.id)}
+                                                aria-label={`Status do pagamento ${item.id}`}
                                                 className={`px-2.5 py-1 text-xs font-bold rounded-full border-none appearance-none cursor-pointer uppercase tracking-wider focus:ring-2 focus:ring-offset-2 focus:ring-[#ff2a2a] ${getStatusColor(item.status)}`}
                                                 onClick={(e) => e.stopPropagation()}
                                             >
@@ -435,6 +462,7 @@ const Financeiro: React.FC<FinanceiroProps> = ({
                                             item.isManual ? (
                                                 <button
                                                     onClick={() => handleDeleteClick(item, 'despesa')}
+                                                    disabled={pending.has(item.id)}
                                                     className="font-medium text-sm transition-colors" style={{ color: '#ff2a2a' }}
                                                 >
                                                     Excluir
@@ -539,6 +567,7 @@ const Financeiro: React.FC<FinanceiroProps> = ({
 
             <Modal isOpen={!!itemToEdit} onClose={() => setItemToEdit(null)} title="Editar Valor do Recebimento">
                 <form onSubmit={confirmEdit} className="p-1 space-y-4">
+                    {mutationError && <p role="alert" className="text-red-line">{mutationError}</p>}
                     <div>
                         <p className="text-sm font-bold text-slate-900 dark:text-white uppercase mb-1">{itemToEdit?.tipo}</p>
                         <p className="text-xs text-slate-500 mb-4 italic">Altere o valor abaixo para ajustar o recebimento.</p>
@@ -548,7 +577,8 @@ const Financeiro: React.FC<FinanceiroProps> = ({
                         <label htmlFor="edit-valor" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Novo Valor (R$)</label>
                         <input 
                             type="number" 
-                            step="0.01" 
+                            step="0.01"
+                            min="0"
                             id="edit-valor" 
                             value={newEditValue} 
                             onChange={(e) => setNewEditValue(parseFloat(e.target.value) || 0)}
@@ -559,13 +589,14 @@ const Financeiro: React.FC<FinanceiroProps> = ({
 
                     <div className="flex justify-end space-x-3 pt-4 border-t">
                         <button type="button" onClick={() => setItemToEdit(null)} className="px-5 py-2 border border-slate-200 dark:border-slate-700 rounded-md text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Cancelar</button>
-                        <button type="submit" className="px-5 py-2 rounded-md font-bold text-black bg-[#ff2a2a] hover:bg-[#c40000] shadow-sm transition-all">Salvar Alteração</button>
+                        <button type="submit" disabled={!!itemToEdit && pending.has(itemToEdit.id)} className="px-5 py-2 rounded-md font-bold text-black bg-[#ff2a2a] hover:bg-[#c40000] shadow-sm transition-all">{itemToEdit && pending.has(itemToEdit.id) ? 'Salvando…' : 'Salvar Alteração'}</button>
                     </div>
                 </form>
             </Modal>
 
             <Modal isOpen={!!itemToDelete} onClose={() => setItemToDelete(null)} title="Confirmar Exclusão">
                 <div className="p-1">
+                    {mutationError && <p role="alert" className="text-red-line">{mutationError}</p>}
                     <p className="text-slate-600 dark:text-slate-400">Tem certeza que deseja excluir este lançamento?</p>
                     <div className="flex items-center gap-3 p-4 my-4 rounded-lg border-l-4 shadow-inner bg-[#0a0a0a] border-[#ff2a2a]">
                         <div className="flex-1">
@@ -576,7 +607,7 @@ const Financeiro: React.FC<FinanceiroProps> = ({
                     <p className="text-xs text-slate-400 mb-6 italic">Atenção: Esta ação não pode ser desfeita.</p>
                     <div className="flex justify-end space-x-3">
                         <button onClick={() => setItemToDelete(null)} className="px-5 py-2 border border-slate-200 dark:border-slate-700 rounded-md text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">Cancelar</button>
-                        <button onClick={confirmDelete} className="px-5 py-2 rounded-md font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-sm transition-all">Confirmar Exclusão</button>
+                        <button onClick={confirmDelete} disabled={!!itemToDelete && pending.has(itemToDelete.id)} className="px-5 py-2 rounded-md font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-sm transition-all">Confirmar Exclusão</button>
                     </div>
                 </div>
             </Modal>

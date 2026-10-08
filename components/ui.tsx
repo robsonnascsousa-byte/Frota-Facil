@@ -17,18 +17,17 @@ interface CardProps {
 export const Card: React.FC<CardProps> = ({ title, value, description, icon, tone = 'neutral' }) => {
   const alert = tone === 'alert';
   return (
-    <div className="p-5 rounded-lg flex items-center gap-4 transition-all hover:-translate-y-0.5" style={{ background: '#141414', border: '1px solid rgba(245,241,234,0.06)' }}>
+    <div className="p-5 rounded-lg flex flex-col 2xl:flex-row items-start gap-3 transition-all hover:-translate-y-0.5" style={{ background: '#141414', border: '1px solid rgba(245,241,234,0.06)' }}>
       <div
         className="p-3 rounded-lg shrink-0"
         style={{ background: alert ? 'rgba(255,42,42,0.10)' : 'rgba(245,241,234,0.05)', color: alert ? '#ff2a2a' : '#8a8a8a' }}
       >
         {icon}
       </div>
-      {/* min-w-0 deixa o filho encolher dentro do flex; sem ele o texto estoura o card */}
-      <div className="min-w-0">
-        <p className="truncate" style={{ color: '#8a8a8a', fontFamily: '"JetBrains Mono", monospace', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase' as const }} title={title}>{title}</p>
-        <p className="truncate tabular-nums" style={{ color: alert ? '#ff2a2a' : '#f5f1ea', fontFamily: '"Archivo Black", sans-serif', fontSize: '26px', lineHeight: 1.15, letterSpacing: '-0.02em' }} title={String(value)}>{value}</p>
-        {description && <p className="text-xs truncate" style={{ color: '#8a8a8a' }} title={description}>{description}</p>}
+      <div className="min-w-0 w-full">
+        <p className="break-words" style={{ color: '#8a8a8a', fontFamily: '"JetBrains Mono", monospace', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase' as const }} title={title}>{title}</p>
+        <p className="break-words tabular-nums" style={{ color: alert ? '#ff2a2a' : '#f5f1ea', fontFamily: '"Archivo Black", sans-serif', fontSize: '26px', lineHeight: 1.15, letterSpacing: '-0.02em' }} title={String(value)}>{value}</p>
+        {description && <p className="text-xs mt-1" style={{ color: '#8a8a8a' }} title={description}>{description}</p>}
       </div>
     </div>
   );

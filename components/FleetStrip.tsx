@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Veiculo, Contrato, estaNaOperacao } from '../types';
 import { formatCurrency } from '../utils/formatters';
+import { getCashAmount, getDueDate, getFinancialToday, summarizeWeeklyPayments } from '../utils/financial';
 
 interface FleetStripProps {
     veiculos: Veiculo[];
@@ -44,8 +45,9 @@ const ESTADO_STYLE: Record<SlotEstado, { barra: string; rotulo: string; cor: str
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
 const FleetStrip: React.FC<FleetStripProps> = ({ veiculos, contratos }) => {
-    const { slots, entrou, esperado, rodando, inicio, fim } = useMemo(() => {
-        const agora = new Date();
+    const cutoff = getFinancialToday();
+    const { slots, entrou, esperado, liquidado, restante, rodando, inicio, fim } = useMemo(() => {
+        const agora = parseData(cutoff);
         // Meia-noite de hoje: comparar com a hora corrente marcaria como atrasada
         // uma cobrança que vence hoje mesmo.
         const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
@@ -59,17 +61,17 @@ const FleetStrip: React.FC<FleetStripProps> = ({ veiculos, contratos }) => {
         const ativos = veiculos.filter(v => estaNaOperacao(v.status));
 
         const slots: Slot[] = ativos.map(v => {
-            const contrato = contratos.find(c => c.veiculo_placa === v.placa && c.status === 'Em vigor');
-            const cobranca = contrato?.pagamentos?.find(p => naSemana(p.vencimento));
+            const contrato = contratos.find(c => (c.veiculo_id === v.id || (!c.veiculo_id && c.veiculo_placa === v.placa)) && c.status === 'Em vigor');
+            const cobrancas = (contrato?.pagamentos || []).filter(p => naSemana(getDueDate(p).date || p.vencimento));
 
             let estado: SlotEstado;
             if (v.status === 'Em manutenção') {
                 estado = 'manutencao';
-            } else if (!contrato || !cobranca) {
+            } else if (!contrato || !cobrancas.length) {
                 estado = 'parado';
-            } else if (cobranca.status === 'Pago') {
+            } else if (cobrancas.every(p => p.status === 'Pago')) {
                 estado = 'pago';
-            } else if (parseData(cobranca.vencimento) < hoje) {
+            } else if (cobrancas.some(p => p.status !== 'Pago' && parseData(getDueDate(p).date || p.vencimento) < hoje)) {
                 estado = 'atrasado';
             } else {
                 estado = 'a_vencer';
@@ -80,7 +82,7 @@ const FleetStrip: React.FC<FleetStripProps> = ({ veiculos, contratos }) => {
                 modelo: v.modelo,
                 motorista: contrato?.motorista_nome,
                 estado,
-                valor: cobranca?.valor ?? 0,
+                valor: cobrancas.reduce((sum, p) => sum + (p.status === 'Pago' ? getCashAmount(p) : p.valor), 0),
             };
         });
 
@@ -88,15 +90,14 @@ const FleetStrip: React.FC<FleetStripProps> = ({ veiculos, contratos }) => {
         const peso: Record<SlotEstado, number> = { atrasado: 0, manutencao: 1, a_vencer: 2, pago: 3, parado: 4 };
         slots.sort((a, b) => peso[a.estado] - peso[b.estado] || a.placa.localeCompare(b.placa));
 
-        const cobrancasDaSemana = contratos.flatMap(c => c.pagamentos || []).filter(p => naSemana(p.vencimento));
-        const entrou = cobrancasDaSemana.filter(p => p.status === 'Pago').reduce((s, p) => s + p.valor, 0);
-        const esperado = cobrancasDaSemana.reduce((s, p) => s + p.valor, 0);
+        const iso = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        const resumo = summarizeWeeklyPayments(contratos.flatMap(c => c.pagamentos || []), iso(inicio), iso(fim), cutoff);
         const rodando = slots.filter(s => s.estado !== 'parado' && s.estado !== 'manutencao').length;
 
-        return { slots, entrou, esperado, rodando, inicio, fim };
-    }, [veiculos, contratos]);
+        return { slots, entrou: resumo.received, esperado: resumo.expected, liquidado: resumo.settled, restante: resumo.remaining, rodando, inicio, fim };
+    }, [veiculos, contratos, cutoff]);
 
-    const pct = esperado > 0 ? Math.min(100, (entrou / esperado) * 100) : 0;
+    const pct = esperado > 0 ? Math.min(100, (liquidado / esperado) * 100) : 0;
     const periodo = `${inicio.getDate()}–${fim.getDate()} ${MESES[fim.getMonth()]}`.toUpperCase();
 
     const mono = { fontFamily: '"JetBrains Mono", monospace' } as const;
@@ -142,13 +143,14 @@ const FleetStrip: React.FC<FleetStripProps> = ({ veiculos, contratos }) => {
 
                 {esperado > 0 && (
                     <div className="flex-1 min-w-[180px] max-w-sm">
+                        <p className="mb-2 text-xs text-bone/60">Cobranças com vencimento nesta semana</p>
                         <div className="flex items-baseline justify-between mb-2">
                             {/* Enquanto falta receber, o que importa é o saldo, não a meta:
                                 no começo da semana o herói é sempre R$ 0 e o "previsto"
                                 sozinho não diz o que fazer. */}
                             <span style={{ ...mono, fontSize: '10px', letterSpacing: '0.15em', color: '#8a8a8a' }}>
-                                {entrou < esperado
-                                    ? `FALTAM ${formatCurrency(esperado - entrou)}`
+                                {restante > 0
+                                    ? `FALTAM ${formatCurrency(restante)}`
                                     : `PREVISTO ${formatCurrency(esperado)}`}
                             </span>
                             <span
@@ -165,7 +167,7 @@ const FleetStrip: React.FC<FleetStripProps> = ({ veiculos, contratos }) => {
                             aria-valuenow={Math.round(pct)}
                             aria-valuemin={0}
                             aria-valuemax={100}
-                            aria-label="Recebido em relação ao previsto na semana"
+                            aria-label="Liquidação das cobranças que vencem nesta semana"
                         >
                             <div
                                 className="h-full rounded-full motion-safe:transition-all motion-safe:duration-700"

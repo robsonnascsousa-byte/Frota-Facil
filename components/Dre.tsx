@@ -3,7 +3,7 @@ import { Header } from './ui';
 import { Contrato, Despesa, Manutencao, Multa, Receita, Veiculo } from '../types';
 import { formatCurrency } from '../utils/formatters';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { classifyDreExpenseCategory, consolidateAssetSales, getCompetenceDate, isAssetSale } from '../utils/financial';
+import { classifyDreExpenseCategory, consolidateAssetSales, getCompetenceDate, getFinancialToday, isAssetSale } from '../utils/financial';
 
 interface DREProps {
     contratos: Contrato[];
@@ -40,7 +40,7 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
         const periodEnd = month === 'all'
             ? `${year}-12-31`
             : new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
-        const today = new Date().toISOString().slice(0, 10);
+        const today = getFinancialToday();
         const cutoff = periodEnd < today ? periodEnd : today;
         const isPeriodMatch = (dateStr: string) => {
             const parts = dateStr.split('-');
@@ -225,6 +225,7 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
                             }}
                             className="bg-slate-50 dark:bg-slate-900 dark:text-white border-none rounded-md text-sm font-black focus:ring-2 focus:ring-petrol-blue-500"
                         >
+                            <option value="all">Ano completo até hoje</option>
                             {['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'].map((m, i) => (
                                 <option key={m} value={i + 1}>{m}</option>
                             ))}
@@ -599,7 +600,7 @@ const DRE: React.FC<DREProps> = ({ contratos, despesas, manutencoes, multas, rec
                                 <ul className="list-disc pl-4 space-y-1">
                                     <li><strong>Receita Líquida:</strong> Receita bruta após impostos diretos (ISS/PIS/COFINS).</li>
                                     <li><strong>CSP (Custo dos Serviços Prestados):</strong> Despesas ligadas diretamente à disponibilidade dos veículos (Manutenção, Seguro, IPVA).</li>
-                                    <li><strong>EBITDA:</strong> Representa a geração de caixa operacional antes de juros, impostos sobre o lucro e amortização.</li>
+                                    <li><strong>EBITDA:</strong> Resultado operacional por competência antes de juros, impostos sobre o lucro, depreciação e amortização. Não representa o saldo de caixa recebido.</li>
                                     <li><strong>Resultado Financeiro:</strong> Custos de capital, como juros de financiamento de veículos.</li>
                                 </ul>
                             </div>

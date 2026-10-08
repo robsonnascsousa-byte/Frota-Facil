@@ -17,6 +17,15 @@ export interface ResolvedFinancialDate {
 
 const PAID_STATUSES = new Set(['pago', 'paga', 'liquidado', 'liquidada']);
 
+/** Datas financeiras seguem o dia civil da operação no Brasil, não o dia UTC. */
+export const getFinancialToday = (date = new Date()): string => {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit',
+    }).formatToParts(date);
+    const part = (type: string) => parts.find(p => p.type === type)!.value;
+    return `${part('year')}-${part('month')}-${part('day')}`;
+};
+
 export const isPaid = (status?: string | null): boolean =>
     PAID_STATUSES.has((status || '').trim().toLocaleLowerCase('pt-BR'));
 
@@ -57,8 +66,22 @@ export const getCashAmount = (item: FinancialDateSource): number =>
 
 export const isRecognizedByCutoff = (
     date: string | null | undefined,
-    cutoff: string = new Date().toISOString().slice(0, 10),
+    cutoff: string = getFinancialToday(),
 ): boolean => Boolean(date && date <= cutoff);
+
+export const sumCashThroughCutoff = (
+    records: FinancialDateSource[], cutoff = getFinancialToday(),
+): number => records
+    .filter(item => isRecognizedByCutoff(getCashDate(item).date, cutoff))
+    .reduce((sum, item) => sum + getCashAmount(item), 0);
+
+export const calculateRecordedCashFlow = (
+    receipts: FinancialDateSource[], payments: FinancialDateSource[], cutoff = getFinancialToday(),
+) => {
+    const received = sumCashThroughCutoff(receipts, cutoff);
+    const paid = sumCashThroughCutoff(payments, cutoff);
+    return { received, paid, balance: received - paid };
+};
 
 export const isPeriodMatch = (
     date: string | null | undefined,
@@ -68,6 +91,31 @@ export const isPeriodMatch = (
     if (!date) return false;
     const [dateYear, dateMonth] = date.split('-').map(Number);
     return dateYear === year && (month === 'all' || dateMonth === month);
+};
+
+export const sumCashInPeriod = (
+    records: FinancialDateSource[], year: number, month: number | 'all', cutoff = getFinancialToday(),
+): number => sumCashThroughCutoff(records.filter(item => isPeriodMatch(getCashDate(item).date, year, month)), cutoff);
+
+export const calculateOverdueAmount = (records: FinancialDateSource[], cutoff = getFinancialToday()): number =>
+    records.filter(item => !isPaid(item.status) && ['Em aberto', 'Atrasado'].includes(item.status || '')
+        && Boolean(getDueDate(item).date && getDueDate(item).date! < cutoff))
+        .reduce((sum, item) => sum + (item.valor || 0), 0);
+
+export const summarizeWeeklyPayments = (
+    records: FinancialDateSource[], start: string, end: string, cutoff = getFinancialToday(),
+) => {
+    const dueThisWeek = records.filter(item => {
+        const due = getDueDate(item).date;
+        return Boolean(due && due >= start && due <= end);
+    });
+    const received = sumCashThroughCutoff(records.filter(item => {
+        const date = getCashDate(item).date;
+        return Boolean(date && date >= start && date <= end);
+    }), cutoff);
+    const expected = dueThisWeek.reduce((sum, item) => sum + (item.valor || 0), 0);
+    const settled = sumCashThroughCutoff(dueThisWeek, cutoff);
+    return { received, expected, settled, remaining: Math.max(0, expected - settled) };
 };
 
 export const splitAmountInCents = (total: number, installments: number): number[] => {
