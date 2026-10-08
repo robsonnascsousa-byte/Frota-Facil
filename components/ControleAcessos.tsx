@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Header, Badge } from './ui';
+import AccessStatus from './AccessStatus';
 import { useAuth } from '../contexts/AuthContext';
 import { getAllProfiles, updateProfileRole, deleteUserProfile } from '../services/database';
 import { UserRole } from '../types';
@@ -13,7 +14,7 @@ interface UserProfile {
 }
 
 const ControleAcessos: React.FC = () => {
-    const { user, role: currentUserRole } = useAuth();
+    const { user, role: currentUserRole, roleLoading, roleError } = useAuth();
     console.log('[ControleAcessos] Rendered with role:', currentUserRole);
     const [users, setUsers] = useState<UserProfile[]>([]);
     const [loading, setLoading] = useState(true);
@@ -31,8 +32,20 @@ const ControleAcessos: React.FC = () => {
     const { signUp } = useAuth();
 
     useEffect(() => {
-        loadUsers();
-    }, []);
+        let active = true;
+        setUsers([]);
+        if (currentUserRole !== 'admin') {
+            setLoading(false);
+            return () => { active = false; };
+        }
+        setLoading(true);
+        getAllProfiles().then(profiles => {
+            if (active) setUsers(profiles);
+        }).finally(() => {
+            if (active) setLoading(false);
+        });
+        return () => { active = false; };
+    }, [currentUserRole, user?.id]);
 
     const loadUsers = async () => {
         setLoading(true);
@@ -117,6 +130,8 @@ const ControleAcessos: React.FC = () => {
             default: return 'Não definido';
         }
     };
+
+    if (roleLoading || roleError) return <><Header title="Controle de Acessos" description="Gerencie os usuários e seus níveis de permissão no sistema." /><AccessStatus /></>;
 
     if (currentUserRole !== 'admin') {
         return (

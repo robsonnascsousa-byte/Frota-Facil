@@ -1,4 +1,4 @@
-export type Page = 'dashboard' | 'veiculos' | 'leiloes' | 'motoristas' | 'planos' | 'contratos' | 'manutencoes' | 'multas' | 'financeiro' | 'dre' | 'documentos' | 'configuracoes' | 'acessos';
+export type Page = 'dashboard' | 'veiculos' | 'motoristas' | 'planos' | 'contratos' | 'manutencoes' | 'multas' | 'financeiro' | 'dre' | 'documentos' | 'configuracoes' | 'acessos';
 
 export type StatusVeiculo = "Disponível" | "Locado" | "Em manutenção" | "Vendido" | "Inativo";
 

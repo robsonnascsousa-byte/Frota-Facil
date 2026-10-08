@@ -19,6 +19,6 @@ View your app in AI Studio: https://ai.studio/apps/drive/1gAFGXHyoKnHNh0KvQftsN1
 3. Run the app:
    `npm run dev`
 
-## Leilões e revenda
+## Escopo do sistema
 
-O módulo CarFlippingBR está integrado ao login, à frota e ao Financeiro. A migração e a função de IA precisam ser ativadas no Supabase conforme [o guia de integração](docs/LEILOES_INTEGRACAO.md). A chave Gemini fica nos secrets do servidor.
+O módulo de leilões e revenda foi retirado para desenvolvimento futuro em uma aplicação específica. A gestão de frota e o Financeiro continuam disponíveis. Consulte [o registro da retirada](docs/MODULO_LEILOES_RETIRADO.md) para o histórico técnico.

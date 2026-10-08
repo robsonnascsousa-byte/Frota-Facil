@@ -1,11 +1,16 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { loadUserRole } from '../services/authRole';
+import type { UserRole } from '../types';
 
 interface AuthContextType {
     user: User | null;
     session: Session | null;
-    role: string | null;
+    role: UserRole | null;
+    roleLoading: boolean;
+    roleError: string | null;
+    refreshRole: () => void;
     loading: boolean;
     passwordRecovery: boolean;
     signUp: (email: string, password: string, nome?: string) => Promise<{ error: AuthError | null }>;
@@ -35,7 +40,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
     const [session, setSession] = useState<Session | null>(null);
     const [loading, setLoading] = useState(true);
-    const [role, setRole] = useState<string | null>(null);
+    const [role, setRole] = useState<UserRole | null>(null);
+    const [roleLoading, setRoleLoading] = useState(false);
+    const [roleError, setRoleError] = useState<string | null>(null);
+    const [roleRevision, setRoleRevision] = useState(0);
     const [passwordRecovery, setPasswordRecovery] = useState(false);
     const isConfigured = isSupabaseConfigured();
 
@@ -47,84 +55,42 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         let isMounted = true;
 
-        const fetchRole = async (userId: string): Promise<string> => {
-            console.log('[AuthContext] fetchRole started for:', userId);
-            try {
-                // Add a timeout to the fetch call
-                const fetchPromise = supabase
-                    .from('profiles')
-                    .select('role')
-                    .eq('id', userId)
-                    .single();
-
-                const timeoutPromise = new Promise((_, reject) =>
-                    setTimeout(() => reject(new Error('Timeout')), 3000)
-                );
-
-                const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
-
-                if (error) {
-                    console.warn('[AuthContext] fetchRole error:', error.message);
-                    return 'operacao';
-                }
-                if (!data) {
-                    console.log('[AuthContext] No profile data found');
-                    return 'operacao';
-                }
-                console.log('[AuthContext] fetchRole returning:', data.role);
-                return data.role || 'operacao';
-            } catch (err) {
-                console.error('[AuthContext] fetchRole error or timeout:', err);
-                return 'operacao'; // Falha fechada: nunca eleva privilégio por indisponibilidade.
-            }
-        };
-
-        const handleSession = async (newSession: Session | null) => {
+        let receivedAuthEvent = false;
+        const handleSession = (newSession: Session | null) => {
             if (!isMounted) return;
-            console.log('[AuthContext] handleSession called, session exists:', !!newSession);
-
             setSession(newSession);
             setUser(newSession?.user ?? null);
-
-            if (newSession?.user) {
-                const userRole = await fetchRole(newSession.user.id);
-                console.log('[AuthContext] Setting role to:', userRole);
-                if (isMounted) setRole(userRole);
-            } else {
-                setRole(null);
-            }
-
-            if (isMounted) {
-                console.log('[AuthContext] Setting loading to false');
-                setLoading(false);
-            }
+            setRole(null);
+            setRoleError(null);
+            setRoleLoading(Boolean(newSession?.user));
+            setRoleRevision(value => value + 1);
+            setLoading(false);
         };
 
-        // Subscribe to auth changes FIRST
+        // Keep this callback synchronous. A Supabase query awaited here can
+        // deadlock while Auth holds its session lock, especially on tab focus.
+        // Profile reads run in the separate effect below, after the callback.
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
-            async (_event, newSession) => {
-                console.log('[AuthContext] onAuthStateChange event:', _event);
+            (_event, newSession) => {
+                receivedAuthEvent = true;
                 if (_event === 'PASSWORD_RECOVERY') {
                     setPasswordRecovery(true);
                 }
-                await handleSession(newSession);
+                handleSession(newSession);
             }
         );
 
-        // Then get initial session
         supabase.auth.getSession().then(({ data: { session: initialSession } }) => {
-            console.log('[AuthContext] getSession resolved');
-            if (isMounted && loading) {
+            // A newer auth event wins over this initial snapshot.
+            if (isMounted && !receivedAuthEvent) {
                 handleSession(initialSession);
             }
+        }).catch(() => {
+            if (isMounted && !receivedAuthEvent) setLoading(false);
         });
 
-        // Safety timeout for the entire loading state
         const timeout = setTimeout(() => {
-            if (isMounted && loading) {
-                console.warn('[AuthContext] Global loading timeout reached');
-                setLoading(false);
-            }
+            if (isMounted) setLoading(false);
         }, 8000);
 
         return () => {
@@ -133,6 +99,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             subscription.unsubscribe();
         };
     }, [isConfigured]);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        let active = true;
+        setRole(null);
+        setRoleError(null);
+        setRoleLoading(Boolean(user));
+        if (!user) return () => { active = false; controller.abort(); };
+
+        // A task boundary also guarantees the Auth lock can be released.
+        const task = setTimeout(() => {
+            loadUserRole(supabase, user.id, controller.signal).then(verifiedRole => {
+                if (active) setRole(verifiedRole);
+            }).catch(error => {
+                if (active) setRoleError((error as Error).message);
+            }).finally(() => {
+                if (active) setRoleLoading(false);
+            });
+        }, 0);
+        return () => {
+            active = false;
+            clearTimeout(task);
+            controller.abort();
+        };
+    }, [user?.id, roleRevision]);
+
+    const refreshRole = () => {
+        setRole(null);
+        setRoleError(null);
+        setRoleLoading(Boolean(user));
+        setRoleRevision(value => value + 1);
+    };
 
     const signUp = async (email: string, password: string, nome?: string, _role?: string) => {
         const { error } = await supabase.auth.signUp({
@@ -166,6 +164,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setUser(null);
         setSession(null);
         setRole(null);
+        setRoleError(null);
+        setRoleLoading(false);
         console.log('[AuthContext] User state cleared');
     };
 
@@ -187,6 +187,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         user,
         session,
         role,
+        roleLoading,
+        roleError,
+        refreshRole,
         loading,
         passwordRecovery,
         signUp,

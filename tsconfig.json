@@ -1,5 +1,4 @@
 {
-  "exclude": ["supabase/functions/auction-ai/index.ts", "supabase/functions/auction-ai/runtime.d.ts"],
   "compilerOptions": {
     "target": "ES2022",
     "experimentalDecorators": true,
