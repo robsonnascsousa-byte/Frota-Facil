@@ -12,6 +12,8 @@ Todos os indicadores de caixa usam `valor_liquidado` quando informado e o valor 
 
 ## Atualizações
 
+A margem líquida acumulada divide o mesmo resultado acumulado pelo faturamento operacional (locações e demais receitas operacionais) de todo o histórico até hoje, por competência, e multiplica por 100. Receitas de venda de veículos ficam fora do faturamento; seu ganho ou perda permanece no resultado. Sem faturamento positivo, o indicador mostra N/D. A margem conserva as mesmas limitações de custos e financiamentos do resultado acumulado.
+
 - A baixa de contrato grava primeiro no banco e aplica a resposta do servidor ao estado atual. Uma baixa simultânea em outra parcela permanece preservada.
 - Controles ficam bloqueados durante a gravação daquele lançamento. Falhas são exibidas e não confirmam a baixa ou fecham o editor como se ela tivesse sido salva.
 - Receita mensal e caixa acumulado mudam com a liquidação. O ranking usa receitas operacionais recebidas menos gastos pagos, incluindo receitas manuais e multas; não mistura custos ainda abertos nem venda de ativos.

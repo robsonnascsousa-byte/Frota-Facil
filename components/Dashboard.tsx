@@ -119,7 +119,7 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
         .filter(item => getCashDate(item).inferred).length;
     const inadimplencia = calculateOverdueAmount(recebimentos, cutoff);
 
-    const { retornoAcumulado, resultadoAcumulado } = useMemo(() => {
+    const { retornoAcumulado, resultadoAcumulado, margemLiquidaAcumulada } = useMemo(() => {
         const receitaContratos = contratos.flatMap(c => c.pagamentos || [])
             .filter(p => isRecognizedByCutoff(getCompetenceDate(p).date))
             .reduce((sum, p) => sum + p.valor, 0);
@@ -142,7 +142,8 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
             .filter(m => isRecognizedByCutoff(getCompetenceDate(m).date))
             .reduce((sum, m) => sum + m.valor, 0);
 
-        const resultadoOperacional = (receitaContratos + receitaManual)
+        const faturamentoOperacional = receitaContratos + receitaManual;
+        const resultadoOperacional = faturamentoOperacional
             - (custosManuais + custosManutencao + custosMultas);
         const retorno = calculateHistoricalCostFleetReturn({
             assets: veiculos.map(v => ({
@@ -157,6 +158,9 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
         return {
             retornoAcumulado: retorno.returnRate === null ? null : retorno.returnRate * 100,
             resultadoAcumulado: retorno.result,
+            margemLiquidaAcumulada: faturamentoOperacional > 0
+                ? (retorno.result / faturamentoOperacional) * 100
+                : null,
         };
     }, [veiculos, contratos, receitas, despesas, manutencoes, multas, cutoff]);
 
@@ -390,11 +394,20 @@ const Dashboard: React.FC<DashboardProps> = ({ veiculos, contratos, documentos, 
             <FleetStrip veiculos={veiculos} contratos={contratos} />
 
             {/* KPIs de fundo — contexto, não manchete */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-4 mb-6">
                 <Card title="Receita do Mês" value={formatCurrency(receitaMes)} description="Receita confirmada" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v.01" /></svg>} />
                 <Card title="Inadimplência" value={formatCurrency(inadimplencia)} description="Vencidos ainda não pagos" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>} tone={inadimplencia > 0 ? "alert" : "neutral"} />
                 <Card title="Retorno acumulado da frota" value={retornoAcumulado === null ? 'N/D' : `${retornoAcumulado.toFixed(1)}%`} description="Por competência: inclui valores a receber. Resultado ÷ aquisições, sem anualização" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>} />
                 <Card title="Resultado acumulado da frota" value={formatCurrency(resultadoAcumulado)} description="Por competência: receitas menos custos incorridos e ganho/perda nas vendas" icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>} />
+                <Card
+                    title="Margem líquida acumulada"
+                    value={margemLiquidaAcumulada === null ? 'N/D' : `${margemLiquidaAcumulada.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`}
+                    description={margemLiquidaAcumulada === null
+                        ? 'Sem faturamento operacional reconhecido para calcular a margem'
+                        : 'Resultado ÷ faturamento operacional. Por competência, todo o histórico até hoje'}
+                    tone={margemLiquidaAcumulada !== null && margemLiquidaAcumulada < 0 ? 'alert' : 'neutral'}
+                    icon={<svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 5L5 19M9 7a2 2 0 11-4 0 2 2 0 014 0zm10 10a2 2 0 11-4 0 2 2 0 014 0z" /></svg>}
+                />
             </div>
 
             {/* Charts Row 1 */}
